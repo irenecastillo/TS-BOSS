@@ -50,7 +50,7 @@ Run the SVAR-FGES smoke test script:
 python src/svarfges/test_svarfges/test_svarfges.py --data-npy src/svarfges/test_svarfges/data_tsbossy.npy
 ```
 
-## SVAR-FGES (Simple)
+## SVAR-FGES
 
 The function is:
 - `src/svarfges/svarfges.py` -> `run_svarfges(...)`
@@ -61,14 +61,14 @@ It returns Tigramite-style output:
 Notes:
 - Tetrad JAR is resolved in this order: `tetrad_jar` argument, `TETRAD_JAR` env var, `libs/tetrad*.jar`.
 - Current Tetrad versions use `FGES + lag replication` (no `SvarFges` class anymore).
-- The folder `src/svarfges/test_svarfges/` groups a minimal runnable setup for teammates:
+- The folder `src/svarfges/test_svarfges/` groups a minimal runnable setup:
 	- `test_svarfges.py`: quick JVM/classpath/smoke check with real data.
 	- `svarfges_quickstart.ipynb`: short notebook to run `run_svarfges(...)`.
 	- `data_tsbossy.npy`: example dataset generated from the TS-BOSS pipeline.
 
 ## External Dependencies in libs/
 
-This repository includes third-party runtime artifacts in `libs/` for reproducibility on systems where internet/package access may be limited (e.g., cluster environments).
+This repository includes third-party runtime artifacts in `libs/` for reproducibility on systems where internet/package access may be limited.
 
 Current content:
 - `libs/tetrad-current.jar`: Java backend used by SVAR-FGES wrapper.
@@ -95,7 +95,7 @@ Four experiments varying:
 - Number of nodes (N)
 - Autocorrelation (a)
 
-Methods compared: TS-BOSS, PCMCI+, TS-BOSS on IID data, DYNOTEARS.
+Methods compared: TS-BOSS, PCMCI+, TS-BOSS on IID data, DYNOTEARS, SVAR-FGES.
 
 ## Attribution
 
