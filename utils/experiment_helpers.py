@@ -21,6 +21,7 @@ from tsboss.ts_boss import TSBOSS
 from tsboss.tsdag_to_tscpdag import tsdag_to_tscpdag
 from metrics import evaluate_graph_complete
 from dynotears_to_tigramite import dynotears_to_tigramite_graph
+from svarfges import run_svarfges
 from time_series_gen import (
     generate_random_contemp_model,
     generate_nonlinear_contemp_timeseries,
@@ -240,7 +241,7 @@ def print_method_results(method_key, display_name, result_entry, time_keys=None)
 # Experiment runners
 # ============================================================================
 
-def experiments_tsboss_vs_pcmci(
+def run_experiments(
     N_samples,            # list of sample sizes
     N_nodes_list,         # list of node counts to test
     avgdegree,            # list of average degrees
@@ -254,7 +255,8 @@ def experiments_tsboss_vs_pcmci(
     seed=123
 ):
     """
-    Compare TS-BOSS, PCMCI+, and TS-BOSS (IID) across hyperparameter settings.
+    Compare TS-BOSS, PCMCI+, DYNOTEARS, SVAR-FGES, and TS-BOSS (IID)
+    across hyperparameter settings.
 
     For each (N_nodes, T, autocorr, degree):
       - Generate up to N_graphs random models
@@ -302,11 +304,11 @@ def experiments_tsboss_vs_pcmci(
                 for d in avgdegree:
                     L_d = int(d * N_nodes)
 
-                    temp_metrics_dag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears'])
-                    temp_metrics_cpdag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears'])
+                    temp_metrics_dag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges'])
+                    temp_metrics_cpdag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges'])
 
                     # Track successful graphs per method
-                    n_graphs_success = {'tsboss': 0, 'tsboss_dag': 0, 'pcmci': 0, 'dynotears': 0, 'tsboss_iid': 0, 'tsboss_iid_dag': 0}
+                    n_graphs_success = {'tsboss': 0, 'tsboss_dag': 0, 'pcmci': 0, 'dynotears': 0, 'svarfges': 0, 'tsboss_iid': 0, 'tsboss_iid_dag': 0}
                     max_iterations = N_graphs * 10  # Safety limit to prevent infinite loops
 
                     graph_idx = 0
@@ -409,6 +411,30 @@ def experiments_tsboss_vs_pcmci(
                         if not all_methods_ok:
                             continue
 
+                        # ===== SVAR-FGES =====
+                        try:
+                            svar_var_names = [f"X{i}" for i in range(N_nodes)]
+
+                            t0 = time.time()
+                            svarfges_out = run_svarfges(
+                                data=data,
+                                lag_max=lag_max,
+                                var_names=svar_var_names,
+                                penalty_discount=1.0,
+                                replicating=True,
+                                verbose=False,
+                            )
+                            t_svarfges = time.time() - t0
+
+                            results_svarfges_vs_dag = evaluate_graph_complete(true_graph, svarfges_out['graph'])
+                            results_svarfges_vs_cpdag = evaluate_graph_complete(true_cpdag, svarfges_out['graph'])
+                        except Exception as e:
+                            print(f"  ERROR in SVAR-FGES (iter {graph_idx}): {type(e).__name__}: {e}")
+                            all_methods_ok = False
+
+                        if not all_methods_ok:
+                            continue
+
                         # ===== PCMCI+ =====
                         try:
                             t0 = time.time()
@@ -469,6 +495,7 @@ def experiments_tsboss_vs_pcmci(
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_dag', results_tsboss_dag_vs_dag, t_algo, t_dag, t_total_dag)
                         append_metrics_to_temp(temp_metrics_dag, 'pcmci', results_pcmci_vs_dag, None, None, t_pcmci)
                         append_metrics_to_temp(temp_metrics_dag, 'dynotears', results_dynotears_vs_dag, None, None, t_dynotears)
+                        append_metrics_to_temp(temp_metrics_dag, 'svarfges', results_svarfges_vs_dag, None, None, t_svarfges)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid', results_iid_vs_dag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid_dag', results_iid_dag_vs_dag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
@@ -477,6 +504,7 @@ def experiments_tsboss_vs_pcmci(
                         append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_dag', results_tsboss_dag_vs_cpdag, t_algo, t_dag, t_total_dag)
                         append_metrics_to_temp(temp_metrics_cpdag, 'pcmci', results_pcmci_vs_cpdag, None, None, t_pcmci)
                         append_metrics_to_temp(temp_metrics_cpdag, 'dynotears', results_dynotears_vs_cpdag, None, None, t_dynotears)
+                        append_metrics_to_temp(temp_metrics_cpdag, 'svarfges', results_svarfges_vs_cpdag, None, None, t_svarfges)
                         append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid', results_iid_vs_cpdag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
                         append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid_dag', results_iid_dag_vs_cpdag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
@@ -484,6 +512,7 @@ def experiments_tsboss_vs_pcmci(
                         n_graphs_success['tsboss_dag'] += 1
                         n_graphs_success['pcmci'] += 1
                         n_graphs_success['dynotears'] += 1
+                        n_graphs_success['svarfges'] += 1
                         n_graphs_success['tsboss_iid'] += 1
                         n_graphs_success['tsboss_iid_dag'] += 1
 
@@ -497,12 +526,13 @@ def experiments_tsboss_vs_pcmci(
                         'n_graphs_tsboss': n_graphs_success['tsboss'],
                         'n_graphs_pcmci': n_graphs_success['pcmci'],
                         'n_graphs_dynotears': n_graphs_success['dynotears'],
+                        'n_graphs_svarfges': n_graphs_success['svarfges'],
                         'n_graphs_tsboss_iid': n_graphs_success['tsboss_iid'],
                         'total_iterations': graph_idx,
                         'N_graphs_target': N_graphs
                     }
 
-                    for method in ['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears']:
+                    for method in ['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges']:
                         for metric_key in ['adj_precision', 'adj_recall', 'adj_f1',
                                            'ori_precision', 'ori_recall', 'ori_f1']:
                             m, se = mean_and_se(temp_metrics_dag[method][metric_key])
@@ -524,12 +554,13 @@ def experiments_tsboss_vs_pcmci(
                         'n_graphs_tsboss': n_graphs_success['tsboss'],
                         'n_graphs_pcmci': n_graphs_success['pcmci'],
                         'n_graphs_dynotears': n_graphs_success['dynotears'],
+                        'n_graphs_svarfges': n_graphs_success['svarfges'],
                         'n_graphs_tsboss_iid': n_graphs_success['tsboss_iid'],
                         'total_iterations': graph_idx,
                         'N_graphs_target': N_graphs
                     }
 
-                    for method in ['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears']:
+                    for method in ['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges']:
                         for metric_key in ['adj_precision', 'adj_recall', 'adj_f1',
                                            'ori_precision', 'ori_recall', 'ori_f1']:
                             m, se = mean_and_se(temp_metrics_cpdag[method][metric_key])
@@ -550,6 +581,7 @@ def experiments_tsboss_vs_pcmci(
                         print(f"  TS-BOSS IID: {n_graphs_success['tsboss_iid']} successful graphs")
                         print(f"  TS-BOSS IID DAG: {n_graphs_success['tsboss_iid_dag']} successful graphs")
                         print(f"  DYNOTEARS: {n_graphs_success['dynotears']} successful graphs")
+                        print(f"  SVAR-FGES: {n_graphs_success['svarfges']} successful graphs")
                         print(f"N_nodes={N_nodes}, T={T_val}, autocorr={auto_coef:.2f}, degree={d}, lag_max={lag_max}")
 
                         print(f"\n--- Comparison vs TRUE DAG ---")
@@ -559,12 +591,14 @@ def experiments_tsboss_vs_pcmci(
                         print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('tsboss_iid_dag', 'TS-BOSS IID DAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_dag)
+                        print_method_results('svarfges', 'SVAR-FGES', result_entry_dag)
                         
                         print(f"\n--- Comparison vs TRUE CPDAG ---")
                         print_method_results('tsboss', 'TS-BOSS CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
                         print_method_results('pcmci', 'PCMCI+', result_entry_cpdag)
                         print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_cpdag)
+                        print_method_results('svarfges', 'SVAR-FGES', result_entry_cpdag)
 
                     # Append both comparison results
                     all_results_dag.append(result_entry_dag)
@@ -573,7 +607,7 @@ def experiments_tsboss_vs_pcmci(
     return {'vs_DAG': all_results_dag, 'vs_CPDAG': all_results_cpdag}
 
 
-def experiments_tsboss_vs_pcmci005(
+def run_experiments_pcmci005(
     N_samples,            # list of sample sizes
     N_nodes_list,         # list of node counts to test
     avgdegree,            # list of average degrees
@@ -587,9 +621,10 @@ def experiments_tsboss_vs_pcmci005(
     seed=123
 ):
     """
-    Compare TS-BOSS, PCMCI+ (two alphas), and TS-BOSS (IID) across hyperparameter settings.
+    Compare TS-BOSS, PCMCI+ (two alphas), DYNOTEARS, SVAR-FGES, and TS-BOSS (IID)
+    across hyperparameter settings.
 
-    Similar to experiments_tsboss_vs_pcmci but also tests PCMCI+ with alpha=0.05
+    Similar to run_experiments but also tests PCMCI+ with alpha=0.05
     for additional comparison.
 
     For each (N_nodes, T, autocorr, degree):
@@ -600,7 +635,7 @@ def experiments_tsboss_vs_pcmci005(
     
     Parameters
     ----------
-    Same as experiments_tsboss_vs_pcmci
+    Same as run_experiments
     
     Returns
     -------
@@ -612,7 +647,7 @@ def experiments_tsboss_vs_pcmci005(
     all_results_dag = []
     all_results_cpdag = []
 
-    method_names = ['tsboss', 'tsboss_dag', 'pcmci', 'pcmci_alpha_0.05', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears']
+    method_names = ['tsboss', 'tsboss_dag', 'pcmci', 'pcmci_alpha_0.05', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges']
 
     for N_nodes in N_nodes_list:
         for T_val in N_samples:
@@ -690,6 +725,30 @@ def experiments_tsboss_vs_pcmci005(
                             results_tsboss_dag_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss.dag['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-BOSS (iter {graph_idx}): {type(e).__name__}: {e}")
+                            all_methods_ok = False
+
+                        if not all_methods_ok:
+                            continue
+
+                        # ===== SVAR-FGES =====
+                        try:
+                            svar_var_names = [f"X{i}" for i in range(N_nodes)]
+
+                            t0 = time.time()
+                            svarfges_out = run_svarfges(
+                                data=data,
+                                lag_max=lag_max,
+                                var_names=svar_var_names,
+                                penalty_discount=1.0,
+                                replicating=True,
+                                verbose=False,
+                            )
+                            t_svarfges = time.time() - t0
+
+                            results_svarfges_vs_dag = evaluate_graph_complete(true_graph, svarfges_out['graph'])
+                            results_svarfges_vs_cpdag = evaluate_graph_complete(true_cpdag, svarfges_out['graph'])
+                        except Exception as e:
+                            print(f"  ERROR in SVAR-FGES (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
 
                         if not all_methods_ok:
@@ -793,6 +852,7 @@ def experiments_tsboss_vs_pcmci005(
                         append_metrics_to_temp(temp_metrics_dag, 'pcmci', results_pcmci_vs_dag, None, None, t_pcmci)
                         append_metrics_to_temp(temp_metrics_dag, 'pcmci_alpha_0.05', results_pcmci_005_vs_dag, None, None, t_pcmci_005)
                         append_metrics_to_temp(temp_metrics_dag, 'dynotears', results_dynotears_vs_dag, None, None, t_dynotears)
+                        append_metrics_to_temp(temp_metrics_dag, 'svarfges', results_svarfges_vs_dag, None, None, t_svarfges)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid', results_iid_vs_dag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid_dag', results_iid_dag_vs_dag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
@@ -802,6 +862,7 @@ def experiments_tsboss_vs_pcmci005(
                         append_metrics_to_temp(temp_metrics_cpdag, 'pcmci', results_pcmci_vs_cpdag, None, None, t_pcmci)
                         append_metrics_to_temp(temp_metrics_cpdag, 'pcmci_alpha_0.05', results_pcmci_005_vs_cpdag, None, None, t_pcmci_005)
                         append_metrics_to_temp(temp_metrics_cpdag, 'dynotears', results_dynotears_vs_cpdag, None, None, t_dynotears)
+                        append_metrics_to_temp(temp_metrics_cpdag, 'svarfges', results_svarfges_vs_cpdag, None, None, t_svarfges)
                         append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid', results_iid_vs_cpdag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
                         append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid_dag', results_iid_dag_vs_cpdag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
@@ -818,6 +879,7 @@ def experiments_tsboss_vs_pcmci005(
                         'n_graphs_pcmci': n_graphs_success['pcmci'],
                         'n_graphs_pcmci_alpha_0.05': n_graphs_success['pcmci_alpha_0.05'],
                         'n_graphs_dynotears': n_graphs_success['dynotears'],
+                        'n_graphs_svarfges': n_graphs_success['svarfges'],
                         'n_graphs_tsboss_iid': n_graphs_success['tsboss_iid'],
                         'total_iterations': graph_idx,
                         'N_graphs_target': N_graphs
@@ -844,6 +906,7 @@ def experiments_tsboss_vs_pcmci005(
                         'n_graphs_pcmci': n_graphs_success['pcmci'],
                         'n_graphs_pcmci_alpha_0.05': n_graphs_success['pcmci_alpha_0.05'],
                         'n_graphs_dynotears': n_graphs_success['dynotears'],
+                        'n_graphs_svarfges': n_graphs_success['svarfges'],
                         'n_graphs_tsboss_iid': n_graphs_success['tsboss_iid'],
                         'total_iterations': graph_idx,
                         'N_graphs_target': N_graphs
@@ -870,6 +933,7 @@ def experiments_tsboss_vs_pcmci005(
                         print(f"  TS-BOSS IID: {n_graphs_success['tsboss_iid']} successful graphs")
                         print(f"  TS-BOSS IID DAG: {n_graphs_success['tsboss_iid_dag']} successful graphs")
                         print(f"  DYNOTEARS: {n_graphs_success['dynotears']} successful graphs")
+                        print(f"  SVAR-FGES: {n_graphs_success['svarfges']} successful graphs")
                         print(f"N_nodes={N_nodes}, T={T_val}, autocorr={auto_coef:.2f}, degree={d}, lag_max={lag_max}")
 
                         print(f"\n--- Comparison vs TRUE DAG ---")
@@ -880,6 +944,7 @@ def experiments_tsboss_vs_pcmci005(
                         print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('tsboss_iid_dag', 'TS-BOSS IID DAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_dag)
+                        print_method_results('svarfges', 'SVAR-FGES', result_entry_dag)
                         
                         print(f"\n--- Comparison vs TRUE CPDAG ---")
                         print_method_results('tsboss', 'TS-BOSS CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
@@ -887,6 +952,7 @@ def experiments_tsboss_vs_pcmci005(
                         print_method_results('pcmci_alpha_0.05', 'PCMCI+ alpha 0.05', result_entry_cpdag)
                         print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_cpdag)
+                        print_method_results('svarfges', 'SVAR-FGES', result_entry_cpdag)
 
                     all_results_dag.append(result_entry_dag)
                     all_results_cpdag.append(result_entry_cpdag)

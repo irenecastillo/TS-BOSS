@@ -138,6 +138,8 @@ def plot_experiments(
             "pcmci_alpha_0.05",
             "tsboss_iid",
             "tsboss_iid_dag",
+            "dynotears",
+            "svarfges",
         ]
         ordered = [m for m in preferred_order if m in detected]
         ordered += sorted(m for m in detected if m not in preferred_order)
@@ -155,6 +157,8 @@ def plot_experiments(
             "pcmci_alpha_0.05": "PCMCI+ (α=0.05)",
             "tsboss_iid": "TS-BOSS (IID)",
             "tsboss_iid_dag": "TS-BOSS (IID,DAG)",
+            "dynotears": "DYNOTEARS",
+            "svarfges": "SVAR-FGES",
         }
         return mapping.get(method, method.replace("_", " ").upper())
 

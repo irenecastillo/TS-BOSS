@@ -1,2 +1,8 @@
 # Python cache
 __pycache__/
+
+# Generated quick test artifacts
+results/quicktest_experiments_*.json
+results/quicktest_experiments_*.txt
+results/quicktest_experiments_cpdag_*.txt
+results/quicktest_experiments_dag_*.txt
