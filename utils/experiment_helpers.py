@@ -534,6 +534,9 @@ def run_experiments(
 
                     for method in ['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges']:
                         for metric_key in ['adj_precision', 'adj_recall', 'adj_f1',
+                                           'adj_contemporaneous_precision', 'adj_contemporaneous_recall', 'adj_contemporaneous_f1',
+                                           'adj_lagged_precision', 'adj_lagged_recall', 'adj_lagged_f1',
+                                           'adj_auto_precision', 'adj_auto_recall', 'adj_auto_f1',
                                            'ori_precision', 'ori_recall', 'ori_f1']:
                             m, se = mean_and_se(temp_metrics_dag[method][metric_key])
                             result_entry_dag[f'{method}_{metric_key}'] = m
@@ -562,6 +565,9 @@ def run_experiments(
 
                     for method in ['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'svarfges']:
                         for metric_key in ['adj_precision', 'adj_recall', 'adj_f1',
+                                           'adj_contemporaneous_precision', 'adj_contemporaneous_recall', 'adj_contemporaneous_f1',
+                                           'adj_lagged_precision', 'adj_lagged_recall', 'adj_lagged_f1',
+                                           'adj_auto_precision', 'adj_auto_recall', 'adj_auto_f1',
                                            'ori_precision', 'ori_recall', 'ori_f1']:
                             m, se = mean_and_se(temp_metrics_cpdag[method][metric_key])
                             result_entry_cpdag[f'{method}_{metric_key}'] = m
@@ -886,7 +892,11 @@ def run_experiments_pcmci005(
                     }
 
                     for method_name in method_names:
-                        for metric_key in ['adj_precision', 'adj_recall', 'adj_f1', 'ori_precision', 'ori_recall', 'ori_f1']:
+                        for metric_key in ['adj_precision', 'adj_recall', 'adj_f1',
+                                           'adj_contemporaneous_precision', 'adj_contemporaneous_recall', 'adj_contemporaneous_f1',
+                                           'adj_lagged_precision', 'adj_lagged_recall', 'adj_lagged_f1',
+                                           'adj_auto_precision', 'adj_auto_recall', 'adj_auto_f1',
+                                           'ori_precision', 'ori_recall', 'ori_f1']:
                             m, se = mean_and_se(temp_metrics_dag[method_name][metric_key])
                             result_entry_dag[f'{method_name}_{metric_key}'] = m
                             result_entry_dag[f'{method_name}_{metric_key}_se'] = se
@@ -913,7 +923,11 @@ def run_experiments_pcmci005(
                     }
 
                     for method_name in method_names:
-                        for metric_key in ['adj_precision', 'adj_recall', 'adj_f1', 'ori_precision', 'ori_recall', 'ori_f1']:
+                        for metric_key in ['adj_precision', 'adj_recall', 'adj_f1',
+                                           'adj_contemporaneous_precision', 'adj_contemporaneous_recall', 'adj_contemporaneous_f1',
+                                           'adj_lagged_precision', 'adj_lagged_recall', 'adj_lagged_f1',
+                                           'adj_auto_precision', 'adj_auto_recall', 'adj_auto_f1',
+                                           'ori_precision', 'ori_recall', 'ori_f1']:
                             m, se = mean_and_se(temp_metrics_cpdag[method_name][metric_key])
                             result_entry_cpdag[f'{method_name}_{metric_key}'] = m
                             result_entry_cpdag[f'{method_name}_{metric_key}_se'] = se

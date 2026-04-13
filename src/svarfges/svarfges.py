@@ -64,7 +64,12 @@ def _ensure_jvm(tetrad_jar: Path) -> None:
     if jpype.isJVMStarted():
         return
     jvm_path = _resolve_jvm_path()
-    jpype.startJVM(jvm_path, classpath=[str(tetrad_jar)])
+    jpype.startJVM(
+        jvm_path,
+        "-Xss4m",
+        "--enable-native-access=ALL-UNNAMED",
+        classpath=[str(tetrad_jar)],
+    )
 
 
 def _default_var_names(n_vars: int) -> list[str]:

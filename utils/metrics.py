@@ -151,11 +151,11 @@ def evaluate_graphs(graph_true, graph_estimated):
                 # TN only makes sense for tau == 0 (contemporaneous)
                 ori_TN += 1
         
-    return {"adjacency": [adj_TP, adj_TN, adj_FP, adj_FN], 
-            "adj_contemporaneous": [adj_contemp_TP, adj_contemp_TN, adj_contemp_FP, adj_contemp_FN],
-            "adj_lagged": [adj_lagged_TP, adj_lagged_TN, adj_lagged_FP, adj_lagged_FN],
-            "adj_auto": [adj_auto_TP, adj_auto_TN, adj_auto_FP, adj_auto_FN],
-            "orientation": [ori_TP,  ori_TN, ori_FP,  ori_FN]}
+    return {"adjacency": [adj_TP, adj_FP, adj_TN, adj_FN],
+            "adj_contemporaneous": [adj_contemp_TP, adj_contemp_FP, adj_contemp_TN, adj_contemp_FN],
+            "adj_lagged": [adj_lagged_TP, adj_lagged_FP, adj_lagged_TN, adj_lagged_FN],
+            "adj_auto": [adj_auto_TP, adj_auto_FP, adj_auto_TN, adj_auto_FN],
+            "orientation": [ori_TP, ori_FP, ori_TN, ori_FN]}
 
 
 def calc_metrics(TP, FP, TN, FN):

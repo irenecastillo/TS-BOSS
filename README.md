@@ -54,9 +54,6 @@ Run experiments:
 jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 ```
 
-Results are saved as:
-- `.txt`: Human-readable format (legacy)
-- `.json`: Structured format for programmatic access
 
 ## Implementation Details
 
