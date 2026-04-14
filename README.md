@@ -1,6 +1,5 @@
 # TS-BOSS: Time Series Best Order Score Search
 
-
 ## Overview
 
 
@@ -49,7 +48,18 @@ Four experiments varying independent factors:
 
 **Evaluation metrics:** Precision, recall, F1-score (computed against DAG and CPDAG ground truth).
 
-Run experiments:
+
+## Running Experiments via Script
+
+You can run all main TS-BOSS experiments directly from the command line using the provided script:
+
+```bash
+python run_experiments.py
+```
+This will execute all four experiments (varying sample size, graph density, number of nodes, and autocorrelation) and save results in the `results/` folder as both `.txt` and `.json` files. To run only selected experiments, use the `--exp` flag with experiment numbers (1–4). Add `--quiet` to reduce console output.
+
+### Jupyter Notebook Alternative
+You can also run experiments interactively:
 ```bash
 jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 ```
