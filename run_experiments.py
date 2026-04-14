@@ -190,7 +190,7 @@ def run_exp3(verbose=True):
     print("EXPERIMENT 3: Varying Number of Nodes")
     print("=" * 70)
 
-    n_nodes_list = [3, 4, 5, 7, 10, 13, 15, 20, 25, 30]
+    n_nodes_list = [3, 4, 5, 7, 10, 13, 15, 20, 25, 30, 50, 100]
 
     for t_val, name_stem, source_tag in [
         (1000, "nodes_experiments",      "experiment_3_vary_num_nodes"),
