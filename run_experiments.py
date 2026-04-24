@@ -99,7 +99,8 @@ def save_experiment(results, name_stem, source_tag, run_params, ac_label, verbos
 # ---------------------------------------------------------------------------
 # Experiment 1: Varying sample size
 # ---------------------------------------------------------------------------
-def run_exp1(verbose=True):
+def run_exp1(verbose=True, skip=False,
+    save_intermediate=True, results_folder=RESULTS_FOLDER,):
     print("\n" + "=" * 70)
     print("EXPERIMENT 1: Varying Sample Size")
     print("=" * 70)
@@ -110,7 +111,13 @@ def run_exp1(verbose=True):
         ac_list = ac_cfg["autocorrelation"]
         transient = ac_cfg["param_transient"]
         print(f"\n  -> autocorrelation config: {ac_label}  (ρ={ac_list}, transient={transient})")
-
+        
+        cur_result_prefix = f"nsamplesize_experiments_{ac_label}"
+        prefix_test = [f.startswith(cur_result_prefix) for f in result_list]
+        if True in prefix_test:
+            if skip:
+                continue
+        
         results = run_experiments(
             N_samples=n_samples_list,
             N_nodes_list=N_NODES,
@@ -122,6 +129,8 @@ def run_exp1(verbose=True):
             N_graphs=N_GRAPHS,
             param_transient=transient,
             verbose=verbose,
+            save_intermediate=save_intermediate,
+            results_folder=results_folder,
         )
 
         run_params = {
@@ -142,7 +151,8 @@ def run_exp1(verbose=True):
 # ---------------------------------------------------------------------------
 # Experiment 2: Varying graph density  (uses run_experiments_pcmci005)
 # ---------------------------------------------------------------------------
-def run_exp2(verbose=True):
+def run_exp2(verbose=True, skip=False,
+    save_intermediate=True, results_folder=RESULTS_FOLDER,):
     print("\n" + "=" * 70)
     print("EXPERIMENT 2: Varying Graph Density")
     print("=" * 70)
@@ -153,7 +163,12 @@ def run_exp2(verbose=True):
         ac_list = ac_cfg["autocorrelation"]
         transient = ac_cfg["param_transient"]
         print(f"\n  -> autocorrelation config: {ac_label}  (ρ={ac_list}, transient={transient})")
-
+        
+        cur_result_prefix = f"avgdegree_experiments_dag_{ac_label}"
+        prefix_test = [f.startswith(cur_result_prefix) for f in result_list]
+        if True in prefix_test:
+            if skip:
+                continue
         results = run_experiments_pcmci005(
             N_samples=N_SAMPLES,
             N_nodes_list=N_NODES,
@@ -165,6 +180,8 @@ def run_exp2(verbose=True):
             N_graphs=N_GRAPHS,
             param_transient=transient,
             verbose=verbose,
+            save_intermediate=save_intermediate,
+            results_folder=results_folder,
         )
 
         run_params = {
@@ -185,11 +202,15 @@ def run_exp2(verbose=True):
 # ---------------------------------------------------------------------------
 # Experiment 3: Varying number of nodes  (T=1000 and T=5000)
 # ---------------------------------------------------------------------------
-def run_exp3(verbose=True):
+def run_exp3(verbose=True, skip=False,
+    save_intermediate=True, results_folder=RESULTS_FOLDER,):
     print("\n" + "=" * 70)
     print("EXPERIMENT 3: Varying Number of Nodes")
     print("=" * 70)
 
+
+    result_list = os.listdir(RESULTS_FOLDER)
+    
     n_nodes_list = [3, 4, 5, 7, 10, 13, 15, 20, 25, 30, 50, 100]
 
     for t_val, name_stem, source_tag in [
@@ -200,8 +221,12 @@ def run_exp3(verbose=True):
         for ac_label, ac_cfg in AUTOCORRELATION_CONFIGS.items():
             ac_list = ac_cfg["autocorrelation"]
             transient = ac_cfg["param_transient"]
-            print(f"\n  -> autocorrelation config: {ac_label}  (ρ={ac_list}, transient={transient})")
-
+            
+            cur_result_prefix = f"{name_stem}_dag_{ac_label}"
+            prefix_test = [f.startswith(cur_result_prefix) for f in result_list]
+            if True in prefix_test:
+                if skip:
+                    continue
             results = run_experiments(
                 N_samples=[t_val],
                 N_nodes_list=n_nodes_list,
@@ -213,6 +238,8 @@ def run_exp3(verbose=True):
                 N_graphs=N_GRAPHS,
                 param_transient=transient,
                 verbose=verbose,
+                save_intermediate=save_intermediate,
+                results_folder=results_folder,
             )
 
             run_params = {
@@ -232,7 +259,8 @@ def run_exp3(verbose=True):
 # ---------------------------------------------------------------------------
 # Experiment 4: Varying autocorrelation
 # ---------------------------------------------------------------------------
-def run_exp4(verbose=True):
+def run_exp4(verbose=True, skip=False,
+    save_intermediate=True, results_folder=RESULTS_FOLDER,):
     print("\n" + "=" * 70)
     print("EXPERIMENT 4: Varying Autocorrelation")
     print("=" * 70)
@@ -254,6 +282,8 @@ def run_exp4(verbose=True):
         N_graphs=N_GRAPHS,
         param_transient=10,
         verbose=verbose,
+        save_intermediate=save_intermediate,
+        results_folder=results_folder,
     )
 
     run_params = {
@@ -293,15 +323,24 @@ if __name__ == "__main__":
         "--quiet", action="store_true",
         help="Suppress per-iteration progress output",
     )
+    parser.add_argument(
+        "--skip", action="store_true",
+        help="skip already done calculations",
+    )
     args = parser.parse_args()
 
     verbose = not args.quiet
-
+    skip = args.skip
+    
     print(f"Results will be saved to: {RESULTS_FOLDER}")
     print(f"Running experiments: {args.exp}")
 
     for exp_id in sorted(args.exp):
-        EXPERIMENTS[exp_id](verbose=verbose)
+        EXPERIMENTS[exp_id](verbose=verbose,
+                            skip=skip,
+                            save_intermediate=True,
+                            results_folder=RESULTS_FOLDER,
+                            )
 
     print("\nAll done.")
 

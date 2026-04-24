@@ -31,6 +31,7 @@ from iid_generator import (
     generate_iid_nonlinear_contemp_timeseries,
 )
 
+from save_load_results_json import save_results_json
 
 # ============================================================================
 # Data generation functions
@@ -252,7 +253,9 @@ def run_experiments(
     N_graphs,             # target number of random graphs per setting
     verbose=True,
     param_transient=0.2,
-    seed=123
+    seed=123,
+    save_intermediate=False,
+    results_folder=None,
 ):
     """
     Compare TS-BOSS, PCMCI+, DYNOTEARS, SVAR-FGES, and TS-BOSS (IID)
@@ -288,6 +291,10 @@ def run_experiments(
         Transient parameter for data generation (default: 0.2)
     seed : int, optional
         Random seed (default: 123)
+    save_intermediate: bool, optional
+        Save intermediate results (default: False)
+    results_folder: str, optional
+        Folder to save intermediate results (default: None)
     
     Returns
     -------
@@ -605,13 +612,39 @@ def run_experiments(
                         print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_cpdag)
                         print_method_results('svarfges', 'SVAR-FGES', result_entry_cpdag)
-
+                    
+                    
+                    if save_intermediate:
+                        run_params = {
+                            "N_samples": [T_val],
+                            "N_nodes": N_nodes,
+                            "graph_density": d,
+                            "autocorrelation": auto_coef,
+                            "tau_max_true": tau_max_true,
+                            "lag_max": lag_max,
+                            "pcmci_alpha": pcmci_alpha,
+                            "N_graphs": N_graphs,
+                            "param_transient": param_transient,
+                        }
+                        json_path = '-'.join([str(key) + '_' + str(run_params[key]) for key in run_params])
+                        save_results_json(
+                            {'vs_DAG': [result_entry_dag], 'vs_CPDAG': [all_results_cpdag]},
+                            json_path,
+                            add_timestamp=True,
+                            folder=results_folder,
+                            metadata={
+                                "format_version": 1,
+                                "source": "run_experiments",
+                                "contains": ["vs_DAG", "vs_CPDAG"],
+                                "run_parameters": run_params,
+                            },
+                        )
                     # Append both comparison results
                     all_results_dag.append(result_entry_dag)
                     all_results_cpdag.append(result_entry_cpdag)
 
     return {'vs_DAG': all_results_dag, 'vs_CPDAG': all_results_cpdag}
-
+    
 
 def run_experiments_pcmci005(
     N_samples,            # list of sample sizes
@@ -625,6 +658,8 @@ def run_experiments_pcmci005(
     verbose=True,
     param_transient=0.2,
     seed=123
+    save_intermediate=False,
+    results_folder=None,
 ):
     """
     Compare TS-BOSS, PCMCI+ (two alphas), DYNOTEARS, SVAR-FGES, and TS-BOSS (IID)
@@ -967,7 +1002,33 @@ def run_experiments_pcmci005(
                         print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_cpdag)
                         print_method_results('svarfges', 'SVAR-FGES', result_entry_cpdag)
-
+                    
+                    if save_intermediate:
+                        run_params = {
+                            "N_samples": [T_val],
+                            "N_nodes": N_nodes,
+                            "graph_density": d,
+                            "autocorrelation": auto_coef,
+                            "tau_max_true": tau_max_true,
+                            "lag_max": lag_max,
+                            "pcmci_alpha": pcmci_alpha,
+                            "N_graphs": N_graphs,
+                            "param_transient": param_transient,
+                        }
+                        json_path = '-'.join([str(key) + '_' + str(run_params[key]) for key in run_params])
+                        save_results_json(
+                            {'vs_DAG': [result_entry_dag], 'vs_CPDAG': [all_results_cpdag]},
+                            json_path,
+                            add_timestamp=True,
+                            folder=results_folder,
+                            metadata={
+                                "format_version": 1,
+                                "source": "run_experiments_pcmci005",
+                                "contains": ["vs_DAG", "vs_CPDAG"],
+                                "run_parameters": run_params,
+                            },
+                        )
+                        
                     all_results_dag.append(result_entry_dag)
                     all_results_cpdag.append(result_entry_cpdag)
 
