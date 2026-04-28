@@ -134,6 +134,7 @@ def plot_experiments_json(
     rotate_xticks: int = 0,
     figsize=(16, 9),
     base_font: int = 14,
+    fixed_params_font: int = 14,
 ):
     """Load a JSON experiment file and plot with the standard plot_experiments layout.
 
@@ -150,10 +151,10 @@ def plot_experiments_json(
     methods : list of str, optional
         Method keys to include (order preserved). If None, auto-detect from metrics.
         Supports: "tsboss", "tsboss_dag", "pcmci", "pcmci_alpha_0.05",
-        "tsboss_iid", "tsboss_iid_dag", "dynotears", "svarfges".
+        "tsboss_iid", "tsboss_iid_dag", "dynotears", "tsfges".
     folder : str, optional
         Results folder containing the JSON file.
-    rotate_xticks, figsize, base_font :
+    rotate_xticks, figsize, base_font, fixed_params_font :
         Forwarded to plot_experiments.
     """
     selected = load_results_json_for_plot(
@@ -170,6 +171,7 @@ def plot_experiments_json(
         rotate_xticks=rotate_xticks,
         figsize=figsize,
         base_font=base_font,
+        fixed_params_font=fixed_params_font,
     )
 
 
@@ -184,6 +186,7 @@ def plot_adjacency_components_json(
     rotate_xticks: int = 0,
     figsize=(16, 10),
     base_font: int = 14,
+    fixed_params_font: int = 14,
 ):
     """Load a JSON experiment file and plot adjacency components in a 2x2 layout.
 
@@ -209,7 +212,7 @@ def plot_adjacency_components_json(
         Results folder containing the JSON file.
     metric : str, optional
         Which metric to plot for each adjacency component: "precision", "recall", or "f1".
-    rotate_xticks, figsize, base_font :
+    rotate_xticks, figsize, base_font, fixed_params_font :
         Plot style controls.
     """
     selected = load_results_json_for_plot(
@@ -227,6 +230,7 @@ def plot_adjacency_components_json(
         rotate_xticks=rotate_xticks,
         figsize=figsize,
         base_font=base_font,
+        fixed_params_font=fixed_params_font,
     )
 
 
@@ -239,6 +243,7 @@ def plot_adjacency_components(
     rotate_xticks=0,
     figsize=(16, 10),
     base_font=14,
+    fixed_params_font=None,
 ):
     """Plot adjacency components (contemporaneous, lagged, autoregressive).
 
@@ -263,6 +268,8 @@ def plot_adjacency_components(
         "N_nodes": "Number of nodes (N)",
     }
     x_label = nice.get(varied_param, varied_param)
+    if varied_param in ("autocorrelation", "autocorr_coef", "autocorr", "a"):
+        x_label = "Autocorrelation (a)"
 
     def fmt_x(v):
         if varied_param in ("autocorrelation", "autocorr_coef", "autocorr"):
@@ -289,6 +296,7 @@ def plot_adjacency_components(
             "tsboss_iid",
             "tsboss_iid_dag",
             "dynotears",
+            "tsfges",
             "svarfges",
         ]
         ordered = [m for m in preferred_order if m in detected]
@@ -301,6 +309,8 @@ def plot_adjacency_components(
             "No method metrics found (expected keys like '<method>_adj_contemporaneous_f1')."
         )
 
+    fixed_box_font = base_font if fixed_params_font is None else fixed_params_font
+
     def method_label(method):
         mapping = {
             "tsboss": "TS-BOSS",
@@ -310,7 +320,8 @@ def plot_adjacency_components(
             "tsboss_iid": "TS-BOSS (IID)",
             "tsboss_iid_dag": "TS-BOSS (IID,DAG)",
             "dynotears": "DYNOTEARS",
-            "svarfges": "SVAR-FGES",
+            "tsfges": "TS-FGES",            
+            "svarfges": "TS-FGES",
         }
         return mapping.get(method, method.replace("_", " ").upper())
 
@@ -370,9 +381,9 @@ def plot_adjacency_components(
     ax_box.axis("off")
     ax_box.add_patch(
         FancyBboxPatch(
-            (0.02, 0.08),
+            (0.02, 0.03),
             0.96,
-            0.82,
+            0.92,
             boxstyle="round,pad=0.03",
             linewidth=1.0,
             edgecolor="0.75",
@@ -380,7 +391,7 @@ def plot_adjacency_components(
             transform=ax_box.transAxes,
         )
     )
-    ax_box.set_title("Experiment settings", fontsize=base_font + 4, pad=10)
+    ax_box.set_title("Experiment settings", fontsize=base_font + 3, pad=6)
 
     order = [
         "N_nodes",
@@ -401,9 +412,9 @@ def plot_adjacency_components(
 
     ax_box.text(
         0.06,
-        0.86,
+        0.965,
         "Fixed hyperparams",
-        fontsize=base_font + 3,
+        fontsize=fixed_box_font + 3,
         fontweight="bold",
         ha="left",
         va="top",
@@ -411,9 +422,9 @@ def plot_adjacency_components(
     )
     ax_box.text(
         0.06,
-        0.78,
+        0.87,
         fixed_lines,
-        fontsize=base_font + 2,
+        fontsize=fixed_box_font + 2,
         family="monospace",
         ha="left",
         va="top",
@@ -432,7 +443,7 @@ def plot_adjacency_components(
             "tsboss_iid": {"marker": "v"},
             "tsboss_iid_dag": {"marker": "p"},
             "dynotears": {"marker": "X"},
-            "svarfges": {"marker": "h"},
+            "tsfges": {"marker": "h"},
         }
 
         mkey = metric_key(component)
@@ -514,7 +525,14 @@ def plot_adjacency_components(
     ax_auto.set_ylim(*common_ylim)
 
     handles, labels = ax_contemp.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=max(1, len(methods)), frameon=False)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=max(1, len(methods)),
+        frameon=False,
+        markerscale=1.35,
+    )
 
     fig.supxlabel(x_label, fontsize=base_font + 4)
     fig.supylabel("Score", fontsize=base_font + 2)
@@ -531,6 +549,7 @@ def plot_experiments(
     rotate_xticks=0,
     figsize=(16, 9),
     base_font=14,
+    fixed_params_font=None,
 ):
     """
     Create comprehensive comparison plots for experimental results.
@@ -558,6 +577,8 @@ def plot_experiments(
         Figure size (width, height) in inches (default: (16, 9))
     base_font : int, optional
         Base font size for labels (default: 14)
+    fixed_params_font : int, optional
+        Font size for the fixed-parameters settings box. If None, uses base_font.
     
     Example
     -------
@@ -580,6 +601,8 @@ def plot_experiments(
         "N_nodes": "Number of nodes (N)",
     }
     x_label = nice.get(varied_param, varied_param)
+    if varied_param in ("autocorrelation", "autocorr_coef", "autocorr", "a"):
+        x_label = "Autocorrelation (a)"
 
     def fmt_x(v):
         if varied_param in ("autocorrelation", "autocorr_coef", "autocorr"):
@@ -605,6 +628,7 @@ def plot_experiments(
             "tsboss_iid",
             "tsboss_iid_dag",
             "dynotears",
+            "tsfges",
             "svarfges",
         ]
         ordered = [m for m in preferred_order if m in detected]
@@ -615,6 +639,8 @@ def plot_experiments(
     if not methods:
         raise ValueError("No method metrics found (expected keys like '<method>_adj_precision').")
 
+    fixed_box_font = base_font if fixed_params_font is None else fixed_params_font
+
     def method_label(method):
         mapping = {
             "tsboss": "TS-BOSS",
@@ -624,7 +650,8 @@ def plot_experiments(
             "tsboss_iid": "TS-BOSS (IID)",
             "tsboss_iid_dag": "TS-BOSS (IID,DAG)",
             "dynotears": "DYNOTEARS",
-            "svarfges": "SVAR-FGES",
+            "tsfges": "TS-FGES",
+            "svarfges": "TS-FGES",
         }
         return mapping.get(method, method.replace("_", " ").upper())
 
@@ -644,14 +671,18 @@ def plot_experiments(
             step = 3
 
         idx = np.arange(0, len(xs), step)
+        is_compact_xtick_layout = varied_param in ("N_nodes", "autocorrelation", "degree", "T")
+        label_rotation = 35
+        label_ha = "right"
+        x_pad = 1 if is_compact_xtick_layout else 3
 
         ax.set_xticks(x_pos[idx])
         ax.set_xticklabels(
             [fmt_x(xs[i]) for i in idx],
-            rotation=35,
-            ha="right",
+            rotation=label_rotation,
+            ha=label_ha,
         )
-        ax.tick_params(axis="x", labelsize=base_font)
+        ax.tick_params(axis="x", labelsize=base_font, pad=x_pad)
 
     def pretty_value(k, v):
         s = str(v)
@@ -689,9 +720,9 @@ def plot_experiments(
 
     ax_box.add_patch(
         FancyBboxPatch(
-            (0.02, 0.08),
+            (0.02, 0.03),
             0.96,
-            0.82,
+            0.92,
             boxstyle="round,pad=0.03",
             linewidth=1.0,
             edgecolor="0.75",
@@ -699,7 +730,7 @@ def plot_experiments(
             transform=ax_box.transAxes,
         )
     )
-    ax_box.set_title("Experiment settings", fontsize=base_font + 4, pad=10)
+    ax_box.set_title("Experiment settings", fontsize=base_font + 3, pad=6)
 
     order = [
         "N_nodes",
@@ -720,9 +751,9 @@ def plot_experiments(
 
     ax_box.text(
         0.06,
-        0.86,
+        0.965,
         "Fixed hyperparams",
-        fontsize=base_font + 3,
+        fontsize=fixed_box_font + 3,
         fontweight="bold",
         ha="left",
         va="top",
@@ -730,9 +761,9 @@ def plot_experiments(
     )
     ax_box.text(
         0.06,
-        0.78,
+        0.87,
         fixed_lines,
-        fontsize=base_font + 2,
+        fontsize=fixed_box_font + 2,
         family="monospace",
         ha="left",
         va="top",
@@ -748,7 +779,8 @@ def plot_experiments(
             "tsboss_iid": {"marker": "v"},
             "tsboss_iid_dag": {"marker": "p"},
             "dynotears": {"marker": "X"},
-            "svarfges": {"marker": "h"},
+            "tsfges": {"marker": "h"},
+                "svarfges": {"marker": "h"},  
         }
 
         for m in methods:
@@ -837,7 +869,14 @@ def plot_experiments(
     handles, labels = ax_time.get_legend_handles_labels()
     if not handles:
         handles, labels = ax_adj_p.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=max(1, len(methods)), frameon=False)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        ncol=max(1, len(methods)),
+        frameon=False,
+        markerscale=1.35,
+    )
 
     fig.supxlabel(x_label, fontsize=base_font + 4)
     fig.subplots_adjust(left=0.04, right=0.99, top=0.93, bottom=0.12)

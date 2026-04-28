@@ -18,8 +18,8 @@ TS-BOSS/
 ├── src/
 │   ├── tsboss/      # TS-BOSS
 │   ├── dynotears/   # Local DYNOTEARS adaptation
-│   └── svarfges/    # SVAR-FGES wrapper (Tetrad)
-│       └── test_svarfges/  # Test script, quickstart notebook, and sample dataset
+│   └── tsfges/      # TS-FGES wrapper (Tetrad)
+│       └── test_tsfges/  # Test script, quickstart notebook, and sample dataset
 ├── utils/           # Metrics, plotting, data generation, converters
 ├── notebooks/       # Main experiment notebooks
 └── results/         # Experimental results
@@ -37,7 +37,7 @@ This project evaluates **TS-BOSS** against other causal discovery methods on syn
 5. **TS-BOSS IID** — TS-BOSS on time-series data treated as independent and identically distributed.
 6. **TS-BOSS IID DAG** — TS-BOSS IID with DAG output
 7. **DYNOTEARS** — Score-based method for continuous data
-8. **SVAR-FGES** — Tetrad FGES wrapper with lag replication for time-series causal discovery
+8. **TS-FGES** — Tetrad FGES wrapper with time order constraints between variables, applied to time series data
 
 ### Experiment Parameters
 Four experiments varying independent factors:
@@ -74,13 +74,13 @@ jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 - `src/scores.py` — Score computations (BIC, other variants)
 - `src/gst.py`, `src/dao.py` — Grow-Shrink tree and directed acyclic order utilities
 
-**SVAR-FGES Wrapper** (`src/svarfges/`)
-- `src/svarfges/svarfges.py` → `run_svarfges(...)` — Main wrapper function
+**TS-FGES Wrapper** (`src/tsfges/`)
+- `src/tsfges/tsfges.py` → `run_tsfges(...)` — Main wrapper function
 - Returns: `{"graph": <adj_matrix>, "val_matrix": <weights>}` (Tigramite format)
-- Backend: Tetrad's Java FGES with lag replication (JPype bridge)
-- Quick start: `src/svarfges/test_svarfges/` contains smoke test & sample data
-  - `test_svarfges.py`: Quick JVM/classpath validation
-  - `svarfges_quickstart.ipynb`: Short example notebook
+- Backend: Tetrad's Java FGES with temporal knowledge constraints (JPype bridge)
+- Quick start: `src/tsfges/test_tsfges/` contains smoke test & sample data
+  - `test_tsfges.py`: Quick JVM/classpath validation
+  - `tsfges_quickstart.ipynb`: Short example notebook
   - `data_tsbossy.npy`: Sample dataset
 
 **DYNOTEARS** (`src/dynotears/`)
@@ -98,7 +98,7 @@ jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 This repository includes third-party runtime artifacts in `libs/` for reproducibility on systems with limited internet access.
 
 **Current content:**
-- `libs/tetrad-current.jar` — Java backend for SVAR-FGES
+- `libs/tetrad-current.jar` — Java backend for TS-FGES
 
 **Provenance record:**
 - **Source URL:** https://github.com/cmu-phil/py-tetrad/blob/main/pytetrad/resources/tetrad-current.jar
@@ -125,12 +125,12 @@ This project builds on and includes code from the following open-source reposito
 - **License:** Apache License 2.0 — Copyright 2019-2020 QuantumBlack Visual Analytics Limited
 - **Use:** `src/dynotears/dynotears.py` (adapted), `src/dynotears/structuremodel.py` (unmodified) and `src/dynotears/transformers.py` (one line changed) are copied from CausalNex because the package is not installable on Python 3.12. Modifications: in `dynotears.py` the two `causalnex` import statements were replaced with relative imports; in `transformers.py` one line was updated to fix a `FutureWarning` in pandas >= 2.0 (`t.index.is_integer()` → `pd.api.types.is_integer_dtype(t.index)`). All function names, signatures, and return types are unchanged. See `src/dynotears/README.md` for details.
 
-### Tetrad — FGES / SVAR-style lag replication backend
+### Tetrad — FGES with temporal knowledge constraints
 - **Repository:** https://github.com/cmu-phil/tetrad
 - **Authors:** CMU causal discovery group and contributors (Joseph Ramsey et al.)
 - **License:** BSD 2-Clause License (see Tetrad repository)
-- **Use in this project:** The module `src/svarfges/svarfges.py` runs Tetrad's Java FGES through JPype and converts results to Tigramite format using `utils/tetrad_to_tigramite.py`.
-- **Important version note:** Recent Tetrad versions do not expose a `SvarFges` Java class; SVAR-style behavior is provided via FGES with lag-replication options.
+- **Use in this project:** The module `src/tsfges/tsfges.py` runs Tetrad's Java FGES through JPype with temporal `Knowledge` constraints and converts results to Tigramite format using `utils/tetrad_to_tigramite.py`.
+- **Note:** Recent Tetrad versions do not expose a `SvarFges` Java class; time-series behavior is implemented via `Fges` + tier-based `Knowledge` (and optionally `setReplicating`).
 
 ### JPype — Python/Java bridge
 - **Repository:** https://github.com/jpype-project/jpype

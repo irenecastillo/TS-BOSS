@@ -306,6 +306,6 @@ if __name__ == "__main__":
     print("\nAll done.")
 
 
-# python run_experiments.py                  # todos
-# python run_experiments.py --exp 1 3        # solo exp 1 y 3
-# python run_experiments.py --exp 4 --quiet  # exp 4 sin verbose
+# python run_experiments.py                  # all experiments
+# python run_experiments.py --exp 1 3        # only exp 1 and 3
+# python run_experiments.py --exp 4 --quiet  # exp 4 without verbose
