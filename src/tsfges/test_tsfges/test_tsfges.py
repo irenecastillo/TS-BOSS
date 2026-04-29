@@ -154,13 +154,6 @@ def main() -> None:
     print(f"Import OK: {Fges}")
     print(f"Import OK: {TimeLagGraph}")
 
-    try:
-        from edu.cmu.tetrad.search import SvarFges
-
-        print(f"SvarFges available: {SvarFges}")
-    except ImportError:
-        print("SvarFges not found in this JAR (expected for >= 7.6.9).")
-        print("Use Fges + TimeLagGraph instead.")
 
     csv_file, is_temp_csv = _prepare_csv_for_tetrad(
         args.data_csv, args.data_npy
