@@ -1,7 +1,12 @@
 # TS-BOSS: Time Series Best Order Score Search
 
-## Overview
+**Third-party licenses and attributions:**
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full legal details, licenses, and provenance of included third-party code and dependencies.
 
+# TS-BOSS: Time Series Best Order Score Search
+
+
+## Overview
 
 **Time-series adaptation of the BOSS algorithm for causal discovery in time-series data.**
 
@@ -46,7 +51,7 @@ Four experiments varying independent factors:
 - **Varying Number of Nodes (N)** — Does the method scale to larger graphs?
 - **Varying Autocorrelation (a)** — How robust is the method to high temporal autocorrelation?
 
-**Evaluation metrics:** Precision, recall, F1-score (computed against DAG and CPDAG ground truth).
+**Evaluation metrics:** Precision, recall, runtime, F1-score (computed against DAG and CPDAG ground truth).
 
 
 ## Running Experiments via Script
@@ -91,48 +96,19 @@ jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 - `experiment_helpers.py` — Experiment orchestration & result saving
 - `tetrad_to_tigramite.py` — Format conversion for Tetrad output
 - `dynotears_to_tigramite.py` — Format conversion for DYNOTEARS output
-- Data generation, metrics, and plotting tools
+- Data generation, metrics and plotting tools
+
 
 ### External Dependencies in libs/
 
-This repository includes third-party runtime artifacts in `libs/` for reproducibility on systems with limited internet access.
+This repository includes third-party runtime artifacts in `libs/` for reproducibility. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full provenance and license details.
 
-**Current content:**
-- `libs/tetrad-current.jar` — Java backend for TS-FGES
-
-**Provenance record:**
-- **Source URL:** https://github.com/cmu-phil/py-tetrad/blob/main/pytetrad/resources/tetrad-current.jar
-- **Upstream project:** https://github.com/cmu-phil/py-tetrad
-- **JAR manifest version:** `7.6.11-SNAPSHOT`
-- **SHA256:** `D295C3F3D60D168CAFBD51B0B22450299D272C90C5E8E29362914F3E7690999C`
-- **Local timestamp:** `2026-04-07 16:23:26`
-
-**License:** The project remains MIT (see `LICENSE`). Third-party artifacts are governed by their original licenses. See `THIRD_PARTY_NOTICES.md` for details.
 
 ## Attribution
 
-This project builds on and includes code from the following open-source repositories:
+This project builds on and includes code from the following open-source repositories (see THIRD_PARTY_NOTICES.md for full details):
 
-### BOSS — Best Order Score Search
-- **Repository:** https://github.com/bja43/boss
-- **Authors:** Bryan Andrews et al.
-- **License:** MIT — Copyright (c) 2024 Bryan Andrews
-- **Use:** The core BOSS algorithm (`src/boss.py`, `src/scores.py`, `src/gst.py`, `src/dao.py`) was adapted to support time-series data.
-
-### CausalNex — DYNOTEARS
-- **Repository:** https://github.com/mckinsey/causalnex
-- **Authors:** QuantumBlack Visual Analytics Limited
-- **License:** Apache License 2.0 — Copyright 2019-2020 QuantumBlack Visual Analytics Limited
-- **Use:** `src/dynotears/dynotears.py` (adapted), `src/dynotears/structuremodel.py` (unmodified) and `src/dynotears/transformers.py` (one line changed) are copied from CausalNex because the package is not installable on Python 3.12. Modifications: in `dynotears.py` the two `causalnex` import statements were replaced with relative imports; in `transformers.py` one line was updated to fix a `FutureWarning` in pandas >= 2.0 (`t.index.is_integer()` → `pd.api.types.is_integer_dtype(t.index)`). All function names, signatures, and return types are unchanged. See `src/dynotears/README.md` for details.
-
-### Tetrad — FGES with temporal knowledge constraints
-- **Repository:** https://github.com/cmu-phil/tetrad
-- **Authors:** CMU causal discovery group and contributors (Joseph Ramsey et al.)
-- **License:** BSD 2-Clause License (see Tetrad repository)
-- **Use in this project:** The module `src/tsfges/tsfges.py` runs Tetrad's Java FGES through JPype with temporal `Knowledge` constraints and converts results to Tigramite format using `utils/tetrad_to_tigramite.py`.
-- **Note:** Recent Tetrad versions do not expose a `SvarFges` Java class; time-series behavior is implemented via `Fges` + tier-based `Knowledge` (and optionally `setReplicating`).
-
-### JPype — Python/Java bridge
-- **Repository:** https://github.com/jpype-project/jpype
-- **License:** Apache License 2.0
-- **Use in this project:** JPype is used only to start the JVM and call Tetrad Java classes from Python.
+- **BOSS — Best Order Score Search** ([repo](https://github.com/bja43/boss), MIT License)
+- **CausalNex — DYNOTEARS** ([repo](https://github.com/mckinsey/causalnex), Apache License 2.0)
+- **Tetrad — FGES with temporal knowledge constraints** ([repo](https://github.com/cmu-phil/tetrad), BSD 2-Clause License)
+- **JPype — Python/Java bridge** ([repo](https://github.com/jpype-project/jpype), Apache License 2.0)
