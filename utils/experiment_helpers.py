@@ -18,7 +18,7 @@ from tigramite.pcmci import PCMCI
 from dynotears.dynotears import from_pandas_dynamic
 
 from tsboss.ts_boss import TSBOSS
-from tsboss.tsdag_to_tscpdag import tsdag_to_tscpdag
+from tsboss.tsdag_to_tsmpdag import tsdag_to_tsmpdag
 from metrics import evaluate_graph_complete
 from dynotears_to_tigramite import dynotears_to_tigramite_graph
 from tsfges import run_tsfges
@@ -205,12 +205,12 @@ def print_method_results(method_key, display_name, result_entry, time_keys=None)
     result_entry : dict
         Dictionary with aggregated results containing mean and se values
     time_keys : list of str, optional
-        List of time metrics to print (e.g., ['time_cpdag', 'time_total'])
+        List of time metrics to print (e.g., ['time_mpdag', 'time_total'])
         If None, prints only 'time_total'
     
     Example
     -------
-    >>> print_method_results('tsboss', 'TS-BOSS', result_entry, ['time_cpdag', 'time_total'])
+    >>> print_method_results('tsboss', 'TS-BOSS', result_entry, ['time_mpdag', 'time_total'])
     >>> print_method_results('pcmci', 'PCMCI+', result_entry)
     """
     def p(k):
@@ -292,11 +292,11 @@ def run_experiments(
     Returns
     -------
     dict
-        Dictionary with keys 'vs_DAG' and 'vs_CPDAG', each containing
+        Dictionary with keys 'vs_DAG' and 'vs_MPDAG', each containing
         list of result dictionaries with metrics and standard errors
     """
     all_results_dag = []
-    all_results_cpdag = []
+    all_results_mpdag = []
 
     for N_nodes in N_nodes_list:
         for T_val in N_samples:
@@ -305,7 +305,7 @@ def run_experiments(
                     L_d = int(d * N_nodes)
 
                     temp_metrics_dag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'tsfges'])
-                    temp_metrics_cpdag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'tsfges'])
+                    temp_metrics_mpdag = initialize_temp_metrics(['tsboss', 'tsboss_dag', 'pcmci', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'tsfges'])
 
                     # Track successful graphs per method
                     n_graphs_success = {'tsboss': 0, 'tsboss_dag': 0, 'pcmci': 0, 'dynotears': 0, 'tsfges': 0, 'tsboss_iid': 0, 'tsboss_iid_dag': 0}
@@ -346,7 +346,7 @@ def run_experiments(
                         true_graph, true_val_matrix = links_to_graph(
                             links_coeffs, tau_max=lag_max, val_tru=True
                         )
-                        true_cpdag = tsdag_to_tscpdag(true_graph)
+                        true_mpdag = tsdag_to_tsmpdag(true_graph)
 
                         var_names = [f'$X^{i}$' for i in range(N_nodes)]
                         dataframe = pp.DataFrame(data, var_names=var_names)
@@ -358,7 +358,7 @@ def run_experiments(
                         try:
                             t0 = time.time()
                             ts_boss = TSBOSS(lag_max=lag_max)
-                            ts_boss.run_tsboss(dataframe, get_cpdag=False, verbose=False)
+                            ts_boss.run_tsboss(dataframe, get_mpdag=False, verbose=False)
                             t_algo = time.time() - t0
 
                             t0 = time.time()
@@ -367,17 +367,17 @@ def run_experiments(
                             t_total_dag = t_algo + t_dag
 
                             t0 = time.time()
-                            ts_boss._parents_to_cpdag()
-                            t_cpdag = time.time() - t0
-                            t_total = t_algo + t_cpdag
+                            ts_boss._parents_to_mpdag()
+                            t_mpdag = time.time() - t0
+                            t_total = t_algo + t_mpdag
 
                             # Compare against true DAG
-                            results_tsboss_vs_dag = evaluate_graph_complete(true_graph, ts_boss.cpdag['graph'])
+                            results_tsboss_vs_dag = evaluate_graph_complete(true_graph, ts_boss.mpdag['graph'])
                             results_tsboss_dag_vs_dag = evaluate_graph_complete(true_graph, ts_boss.dag['graph'])
 
-                            # Compare against true CPDAG
-                            results_tsboss_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss.cpdag['graph'])
-                            results_tsboss_dag_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss.dag['graph'])
+                            # Compare against true MPDAG
+                            results_tsboss_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss.mpdag['graph'])
+                            results_tsboss_dag_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss.dag['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-BOSS (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -403,7 +403,7 @@ def run_experiments(
                             t_dynotears = time.time() - t0
 
                             results_dynotears_vs_dag = evaluate_graph_complete(true_graph, dynotears_graph)
-                            results_dynotears_vs_cpdag = evaluate_graph_complete(true_cpdag, dynotears_graph)
+                            results_dynotears_vs_mpdag = evaluate_graph_complete(true_mpdag, dynotears_graph)
                         except Exception as e:
                             print(f"  ERROR in DYNOTEARS (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -427,7 +427,7 @@ def run_experiments(
                             t_tsfges = time.time() - t0
 
                             results_tsfges_vs_dag = evaluate_graph_complete(true_graph, tsfges_out['graph'])
-                            results_tsfges_vs_cpdag = evaluate_graph_complete(true_cpdag, tsfges_out['graph'])
+                            results_tsfges_vs_mpdag = evaluate_graph_complete(true_mpdag, tsfges_out['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-FGES (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -446,8 +446,8 @@ def run_experiments(
                             # Compare against true DAG
                             results_pcmci_vs_dag = evaluate_graph_complete(true_graph, res['graph'])
 
-                            # Compare against true CPDAG
-                            results_pcmci_vs_cpdag = evaluate_graph_complete(true_cpdag, res['graph'])
+                            # Compare against true mpdag
+                            results_pcmci_vs_mpdag = evaluate_graph_complete(true_mpdag, res['graph'])
                         except Exception as e:
                             print(f"  ERROR in PCMCI+ (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -463,7 +463,7 @@ def run_experiments(
 
                             t0 = time.time()
                             ts_boss_iid = TSBOSS(lag_max=lag_max)
-                            ts_boss_iid.run_tsboss(data_iid, iid_data=True, get_cpdag=False, verbose=False)
+                            ts_boss_iid.run_tsboss(data_iid, iid_data=True, get_mpdag=False, verbose=False)
                             t_algo_iid = time.time() - t0
 
                             t0 = time.time()
@@ -472,17 +472,17 @@ def run_experiments(
                             t_total_iid_dag = t_algo_iid + t_dag_iid
 
                             t0 = time.time()
-                            ts_boss_iid._parents_to_cpdag()
-                            t_cpdag_iid = time.time() - t0
-                            t_total_iid_cpdag = t_algo_iid + t_cpdag_iid
+                            ts_boss_iid._parents_to_mpdag()
+                            t_mpdag_iid = time.time() - t0
+                            t_total_iid_mpdag = t_algo_iid + t_mpdag_iid
 
                             # Compare against true DAG
-                            results_iid_vs_dag = evaluate_graph_complete(true_graph, ts_boss_iid.cpdag['graph'])
+                            results_iid_vs_dag = evaluate_graph_complete(true_graph, ts_boss_iid.mpdag['graph'])
                             results_iid_dag_vs_dag = evaluate_graph_complete(true_graph, ts_boss_iid.dag['graph'])
 
-                            # Compare against true CPDAG
-                            results_iid_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss_iid.cpdag['graph'])
-                            results_iid_dag_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss_iid.dag['graph'])
+                            # Compare against true mpdag
+                            results_iid_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss_iid.mpdag['graph'])
+                            results_iid_dag_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss_iid.dag['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-BOSS IID (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -491,22 +491,22 @@ def run_experiments(
                             continue
 
                         # Store metrics for DAG comparison
-                        append_metrics_to_temp(temp_metrics_dag, 'tsboss', results_tsboss_vs_dag, t_algo, t_cpdag, t_total)
+                        append_metrics_to_temp(temp_metrics_dag, 'tsboss', results_tsboss_vs_dag, t_algo, t_mpdag, t_total)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_dag', results_tsboss_dag_vs_dag, t_algo, t_dag, t_total_dag)
                         append_metrics_to_temp(temp_metrics_dag, 'pcmci', results_pcmci_vs_dag, None, None, t_pcmci)
                         append_metrics_to_temp(temp_metrics_dag, 'dynotears', results_dynotears_vs_dag, None, None, t_dynotears)
                         append_metrics_to_temp(temp_metrics_dag, 'tsfges', results_tsfges_vs_dag, None, None, t_tsfges)
-                        append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid', results_iid_vs_dag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
+                        append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid', results_iid_vs_dag, t_algo_iid, t_mpdag_iid, t_total_iid_mpdag)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid_dag', results_iid_dag_vs_dag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
-                        # Store metrics for CPDAG comparison
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss', results_tsboss_vs_cpdag, t_algo, t_cpdag, t_total)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_dag', results_tsboss_dag_vs_cpdag, t_algo, t_dag, t_total_dag)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'pcmci', results_pcmci_vs_cpdag, None, None, t_pcmci)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'dynotears', results_dynotears_vs_cpdag, None, None, t_dynotears)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsfges', results_tsfges_vs_cpdag, None, None, t_tsfges)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid', results_iid_vs_cpdag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid_dag', results_iid_dag_vs_cpdag, t_algo_iid, t_dag_iid, t_total_iid_dag)
+                        # Store metrics for MPDAG comparison
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss', results_tsboss_vs_mpdag, t_algo, t_mpdag, t_total)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss_dag', results_tsboss_dag_vs_mpdag, t_algo, t_dag, t_total_dag)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'pcmci', results_pcmci_vs_mpdag, None, None, t_pcmci)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'dynotears', results_dynotears_vs_mpdag, None, None, t_dynotears)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsfges', results_tsfges_vs_mpdag, None, None, t_tsfges)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss_iid', results_iid_vs_mpdag, t_algo_iid, t_mpdag_iid, t_total_iid_mpdag)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss_iid_dag', results_iid_dag_vs_mpdag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
                         n_graphs_success['tsboss'] += 1
                         n_graphs_success['tsboss_dag'] += 1
@@ -547,9 +547,9 @@ def run_experiments(
                             result_entry_dag[f'{method}_{time_key}'] = m
                             result_entry_dag[f'{method}_{time_key}_se'] = se
 
-                    # ===== Summarize results for CPDAG comparison =====
-                    result_entry_cpdag = {
-                        'comparison_type': 'vs_CPDAG',
+                    # ===== Summarize results for MPDAG comparison =====
+                    result_entry_mpdag = {
+                        'comparison_type': 'vs_MPDAG',
                         'N_nodes': N_nodes,
                         'T': T_val,
                         'autocorrelation': auto_coef,
@@ -569,14 +569,14 @@ def run_experiments(
                                            'adj_lagged_precision', 'adj_lagged_recall', 'adj_lagged_f1',
                                            'adj_auto_precision', 'adj_auto_recall', 'adj_auto_f1',
                                            'ori_precision', 'ori_recall', 'ori_f1']:
-                            m, se = mean_and_se(temp_metrics_cpdag[method][metric_key])
-                            result_entry_cpdag[f'{method}_{metric_key}'] = m
-                            result_entry_cpdag[f'{method}_{metric_key}_se'] = se
+                            m, se = mean_and_se(temp_metrics_mpdag[method][metric_key])
+                            result_entry_mpdag[f'{method}_{metric_key}'] = m
+                            result_entry_mpdag[f'{method}_{metric_key}_se'] = se
 
-                        for time_key in [k for k in temp_metrics_cpdag[method].keys() if k.startswith('time_')]:
-                            m, se = mean_and_se(temp_metrics_cpdag[method][time_key])
-                            result_entry_cpdag[f'{method}_{time_key}'] = m
-                            result_entry_cpdag[f'{method}_{time_key}_se'] = se
+                        for time_key in [k for k in temp_metrics_mpdag[method].keys() if k.startswith('time_')]:
+                            m, se = mean_and_se(temp_metrics_mpdag[method][time_key])
+                            result_entry_mpdag[f'{method}_{time_key}'] = m
+                            result_entry_mpdag[f'{method}_{time_key}_se'] = se
 
                     if verbose:
                         print(f"\n{'='*80}")
@@ -591,26 +591,26 @@ def run_experiments(
                         print(f"N_nodes={N_nodes}, T={T_val}, autocorr={auto_coef:.2f}, degree={d}, lag_max={lag_max}")
 
                         print(f"\n--- Comparison vs TRUE DAG ---")
-                        print_method_results('tsboss', 'TS-BOSS CPDAG', result_entry_dag, ['time_graph', 'time_total'])
+                        print_method_results('tsboss', 'TS-BOSS MPDAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('tsboss_dag', 'TS-BOSS DAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('pcmci', 'PCMCI+', result_entry_dag)
-                        print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_dag, ['time_graph', 'time_total'])
+                        print_method_results('tsboss_iid', 'TS-BOSS IID MPDAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('tsboss_iid_dag', 'TS-BOSS IID DAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_dag)
                         print_method_results('tsfges', 'TS-FGES', result_entry_dag)
                         
-                        print(f"\n--- Comparison vs TRUE CPDAG ---")
-                        print_method_results('tsboss', 'TS-BOSS CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
-                        print_method_results('pcmci', 'PCMCI+', result_entry_cpdag)
-                        print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
-                        print_method_results('dynotears', 'DYNOTEARS', result_entry_cpdag)
-                        print_method_results('tsfges', 'TS-FGES', result_entry_cpdag)
+                        print(f"\n--- Comparison vs TRUE MPDAG ---")
+                        print_method_results('tsboss', 'TS-BOSS MPDAG', result_entry_mpdag, ['time_graph', 'time_total'])
+                        print_method_results('pcmci', 'PCMCI+', result_entry_mpdag)
+                        print_method_results('tsboss_iid', 'TS-BOSS IID MPDAG', result_entry_mpdag, ['time_graph', 'time_total'])
+                        print_method_results('dynotears', 'DYNOTEARS', result_entry_mpdag)
+                        print_method_results('tsfges', 'TS-FGES', result_entry_mpdag)
 
                     # Append both comparison results
                     all_results_dag.append(result_entry_dag)
-                    all_results_cpdag.append(result_entry_cpdag)
+                    all_results_mpdag.append(result_entry_mpdag)
 
-    return {'vs_DAG': all_results_dag, 'vs_CPDAG': all_results_cpdag}
+    return {'vs_DAG': all_results_dag, 'vs_MPDAG': all_results_mpdag}
 
 
 def run_experiments_pcmci005(
@@ -646,12 +646,12 @@ def run_experiments_pcmci005(
     Returns
     -------
     dict
-        Dictionary with keys 'vs_DAG' and 'vs_CPDAG', each containing
+        Dictionary with keys 'vs_DAG' and 'vs_MPDAG', each containing
         list of result dictionaries with metrics and standard errors.
         Includes results for 'pcmci_alpha_0.05' method.
     """
     all_results_dag = []
-    all_results_cpdag = []
+    all_results_mpdag = []
 
     method_names = ['tsboss', 'tsboss_dag', 'pcmci', 'pcmci_alpha_0.05', 'tsboss_iid', 'tsboss_iid_dag', 'dynotears', 'tsfges']
 
@@ -662,7 +662,7 @@ def run_experiments_pcmci005(
                     L_d = int(d * N_nodes)
 
                     temp_metrics_dag = initialize_temp_metrics(method_names)
-                    temp_metrics_cpdag = initialize_temp_metrics(method_names)
+                    temp_metrics_mpdag = initialize_temp_metrics(method_names)
 
                     n_graphs_success = {name: 0 for name in method_names}
                     max_iterations = N_graphs * 10
@@ -701,7 +701,7 @@ def run_experiments_pcmci005(
                         true_graph, true_val_matrix = links_to_graph(
                             links_coeffs, tau_max=lag_max, val_tru=True
                         )
-                        true_cpdag = tsdag_to_tscpdag(true_graph)
+                        true_mpdag = tsdag_to_tsmpdag(true_graph)
 
                         var_names = [f'$X^{i}$' for i in range(N_nodes)]
                         dataframe = pp.DataFrame(data, var_names=var_names)
@@ -712,7 +712,7 @@ def run_experiments_pcmci005(
                         try:
                             t0 = time.time()
                             ts_boss = TSBOSS(lag_max=lag_max)
-                            ts_boss.run_tsboss(dataframe, get_cpdag=False, verbose=False)
+                            ts_boss.run_tsboss(dataframe, get_mpdag=False, verbose=False)
                             t_algo = time.time() - t0
 
                             t0 = time.time()
@@ -721,14 +721,14 @@ def run_experiments_pcmci005(
                             t_total_dag = t_algo + t_dag
 
                             t0 = time.time()
-                            ts_boss._parents_to_cpdag()
-                            t_cpdag = time.time() - t0
-                            t_total = t_algo + t_cpdag
+                            ts_boss._parents_to_mpdag()
+                            t_mpdag = time.time() - t0
+                            t_total = t_algo + t_mpdag
 
-                            results_tsboss_vs_dag = evaluate_graph_complete(true_graph, ts_boss.cpdag['graph'])
+                            results_tsboss_vs_dag = evaluate_graph_complete(true_graph, ts_boss.mpdag['graph'])
                             results_tsboss_dag_vs_dag = evaluate_graph_complete(true_graph, ts_boss.dag['graph'])
-                            results_tsboss_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss.cpdag['graph'])
-                            results_tsboss_dag_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss.dag['graph'])
+                            results_tsboss_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss.mpdag['graph'])
+                            results_tsboss_dag_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss.dag['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-BOSS (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -752,7 +752,7 @@ def run_experiments_pcmci005(
                             t_tsfges = time.time() - t0
 
                             results_tsfges_vs_dag = evaluate_graph_complete(true_graph, tsfges_out['graph'])
-                            results_tsfges_vs_cpdag = evaluate_graph_complete(true_cpdag, tsfges_out['graph'])
+                            results_tsfges_vs_mpdag = evaluate_graph_complete(true_mpdag, tsfges_out['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-FGES (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -778,7 +778,7 @@ def run_experiments_pcmci005(
                             t_dynotears = time.time() - t0
 
                             results_dynotears_vs_dag = evaluate_graph_complete(true_graph, dynotears_graph)
-                            results_dynotears_vs_cpdag = evaluate_graph_complete(true_cpdag, dynotears_graph)
+                            results_dynotears_vs_mpdag = evaluate_graph_complete(true_mpdag, dynotears_graph)
                         except Exception as e:
                             print(f"  ERROR in DYNOTEARS (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -795,7 +795,7 @@ def run_experiments_pcmci005(
                             t_pcmci = time.time() - t0
 
                             results_pcmci_vs_dag = evaluate_graph_complete(true_graph, res['graph'])
-                            results_pcmci_vs_cpdag = evaluate_graph_complete(true_cpdag, res['graph'])
+                            results_pcmci_vs_mpdag = evaluate_graph_complete(true_mpdag, res['graph'])
                         except Exception as e:
                             print(f"  ERROR in PCMCI+ (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -812,7 +812,7 @@ def run_experiments_pcmci005(
                             t_pcmci_005 = time.time() - t0
 
                             results_pcmci_005_vs_dag = evaluate_graph_complete(true_graph, res_005['graph'])
-                            results_pcmci_005_vs_cpdag = evaluate_graph_complete(true_cpdag, res_005['graph'])
+                            results_pcmci_005_vs_mpdag = evaluate_graph_complete(true_mpdag, res_005['graph'])
                         except Exception as e:
                             print(f"  ERROR in PCMCI+ alpha=0.05 (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -828,7 +828,7 @@ def run_experiments_pcmci005(
 
                             t0 = time.time()
                             ts_boss_iid = TSBOSS(lag_max=lag_max)
-                            ts_boss_iid.run_tsboss(data_iid, iid_data=True, get_cpdag=False, verbose=False)
+                            ts_boss_iid.run_tsboss(data_iid, iid_data=True, get_mpdag=False, verbose=False)
                             t_algo_iid = time.time() - t0
 
                             t0 = time.time()
@@ -837,14 +837,14 @@ def run_experiments_pcmci005(
                             t_total_iid_dag = t_algo_iid + t_dag_iid
 
                             t0 = time.time()
-                            ts_boss_iid._parents_to_cpdag()
-                            t_cpdag_iid = time.time() - t0
-                            t_total_iid_cpdag = t_algo_iid + t_cpdag_iid
+                            ts_boss_iid._parents_to_mpdag()
+                            t_mpdag_iid = time.time() - t0
+                            t_total_iid_mpdag = t_algo_iid + t_mpdag_iid
 
-                            results_iid_vs_dag = evaluate_graph_complete(true_graph, ts_boss_iid.cpdag['graph'])
+                            results_iid_vs_dag = evaluate_graph_complete(true_graph, ts_boss_iid.mpdag['graph'])
                             results_iid_dag_vs_dag = evaluate_graph_complete(true_graph, ts_boss_iid.dag['graph'])
-                            results_iid_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss_iid.cpdag['graph'])
-                            results_iid_dag_vs_cpdag = evaluate_graph_complete(true_cpdag, ts_boss_iid.dag['graph'])
+                            results_iid_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss_iid.mpdag['graph'])
+                            results_iid_dag_vs_mpdag = evaluate_graph_complete(true_mpdag, ts_boss_iid.dag['graph'])
                         except Exception as e:
                             print(f"  ERROR in TS-BOSS IID (iter {graph_idx}): {type(e).__name__}: {e}")
                             all_methods_ok = False
@@ -853,24 +853,24 @@ def run_experiments_pcmci005(
                             continue
 
                         # ===== Store metrics: DAG =====
-                        append_metrics_to_temp(temp_metrics_dag, 'tsboss', results_tsboss_vs_dag, t_algo, t_cpdag, t_total)
+                        append_metrics_to_temp(temp_metrics_dag, 'tsboss', results_tsboss_vs_dag, t_algo, t_mpdag, t_total)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_dag', results_tsboss_dag_vs_dag, t_algo, t_dag, t_total_dag)
                         append_metrics_to_temp(temp_metrics_dag, 'pcmci', results_pcmci_vs_dag, None, None, t_pcmci)
                         append_metrics_to_temp(temp_metrics_dag, 'pcmci_alpha_0.05', results_pcmci_005_vs_dag, None, None, t_pcmci_005)
                         append_metrics_to_temp(temp_metrics_dag, 'dynotears', results_dynotears_vs_dag, None, None, t_dynotears)
                         append_metrics_to_temp(temp_metrics_dag, 'tsfges', results_tsfges_vs_dag, None, None, t_tsfges)
-                        append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid', results_iid_vs_dag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
+                        append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid', results_iid_vs_dag, t_algo_iid, t_mpdag_iid, t_total_iid_mpdag)
                         append_metrics_to_temp(temp_metrics_dag, 'tsboss_iid_dag', results_iid_dag_vs_dag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
-                        # ===== Store metrics: CPDAG =====
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss', results_tsboss_vs_cpdag, t_algo, t_cpdag, t_total)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_dag', results_tsboss_dag_vs_cpdag, t_algo, t_dag, t_total_dag)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'pcmci', results_pcmci_vs_cpdag, None, None, t_pcmci)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'pcmci_alpha_0.05', results_pcmci_005_vs_cpdag, None, None, t_pcmci_005)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'dynotears', results_dynotears_vs_cpdag, None, None, t_dynotears)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsfges', results_tsfges_vs_cpdag, None, None, t_tsfges)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid', results_iid_vs_cpdag, t_algo_iid, t_cpdag_iid, t_total_iid_cpdag)
-                        append_metrics_to_temp(temp_metrics_cpdag, 'tsboss_iid_dag', results_iid_dag_vs_cpdag, t_algo_iid, t_dag_iid, t_total_iid_dag)
+                        # ===== Store metrics: MPDAG =====
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss', results_tsboss_vs_mpdag, t_algo, t_mpdag, t_total)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss_dag', results_tsboss_dag_vs_mpdag, t_algo, t_dag, t_total_dag)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'pcmci', results_pcmci_vs_mpdag, None, None, t_pcmci)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'pcmci_alpha_0.05', results_pcmci_005_vs_mpdag, None, None, t_pcmci_005)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'dynotears', results_dynotears_vs_mpdag, None, None, t_dynotears)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsfges', results_tsfges_vs_mpdag, None, None, t_tsfges)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss_iid', results_iid_vs_mpdag, t_algo_iid, t_mpdag_iid, t_total_iid_mpdag)
+                        append_metrics_to_temp(temp_metrics_mpdag, 'tsboss_iid_dag', results_iid_dag_vs_mpdag, t_algo_iid, t_dag_iid, t_total_iid_dag)
 
                         for method_name in method_names:
                             n_graphs_success[method_name] += 1
@@ -906,8 +906,8 @@ def run_experiments_pcmci005(
                             result_entry_dag[f'{method_name}_{time_key}'] = m
                             result_entry_dag[f'{method_name}_{time_key}_se'] = se
 
-                    result_entry_cpdag = {
-                        'comparison_type': 'vs_CPDAG',
+                    result_entry_mpdag = {
+                        'comparison_type': 'vs_MPDAG',
                         'N_nodes': N_nodes,
                         'T': T_val,
                         'autocorrelation': auto_coef,
@@ -928,14 +928,14 @@ def run_experiments_pcmci005(
                                            'adj_lagged_precision', 'adj_lagged_recall', 'adj_lagged_f1',
                                            'adj_auto_precision', 'adj_auto_recall', 'adj_auto_f1',
                                            'ori_precision', 'ori_recall', 'ori_f1']:
-                            m, se = mean_and_se(temp_metrics_cpdag[method_name][metric_key])
-                            result_entry_cpdag[f'{method_name}_{metric_key}'] = m
-                            result_entry_cpdag[f'{method_name}_{metric_key}_se'] = se
+                            m, se = mean_and_se(temp_metrics_mpdag[method_name][metric_key])
+                            result_entry_mpdag[f'{method_name}_{metric_key}'] = m
+                            result_entry_mpdag[f'{method_name}_{metric_key}_se'] = se
 
-                        for time_key in [k for k in temp_metrics_cpdag[method_name].keys() if k.startswith('time_')]:
-                            m, se = mean_and_se(temp_metrics_cpdag[method_name][time_key])
-                            result_entry_cpdag[f'{method_name}_{time_key}'] = m
-                            result_entry_cpdag[f'{method_name}_{time_key}_se'] = se
+                        for time_key in [k for k in temp_metrics_mpdag[method_name].keys() if k.startswith('time_')]:
+                            m, se = mean_and_se(temp_metrics_mpdag[method_name][time_key])
+                            result_entry_mpdag[f'{method_name}_{time_key}'] = m
+                            result_entry_mpdag[f'{method_name}_{time_key}_se'] = se
 
                     if verbose:
                         print(f"\n{'='*80}")
@@ -951,27 +951,27 @@ def run_experiments_pcmci005(
                         print(f"N_nodes={N_nodes}, T={T_val}, autocorr={auto_coef:.2f}, degree={d}, lag_max={lag_max}")
 
                         print(f"\n--- Comparison vs TRUE DAG ---")
-                        print_method_results('tsboss', 'TS-BOSS CPDAG', result_entry_dag, ['time_graph', 'time_total'])
+                        print_method_results('tsboss', 'TS-BOSS MPDAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('tsboss_dag', 'TS-BOSS DAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('pcmci', 'PCMCI+', result_entry_dag)
                         print_method_results('pcmci_alpha_0.05', 'PCMCI+ alpha 0.05', result_entry_dag)
-                        print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_dag, ['time_graph', 'time_total'])
+                        print_method_results('tsboss_iid', 'TS-BOSS IID MPDAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('tsboss_iid_dag', 'TS-BOSS IID DAG', result_entry_dag, ['time_graph', 'time_total'])
                         print_method_results('dynotears', 'DYNOTEARS', result_entry_dag)
                         print_method_results('tsfges', 'TS-FGES', result_entry_dag)
                         
-                        print(f"\n--- Comparison vs TRUE CPDAG ---")
-                        print_method_results('tsboss', 'TS-BOSS CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
-                        print_method_results('pcmci', 'PCMCI+', result_entry_cpdag)
-                        print_method_results('pcmci_alpha_0.05', 'PCMCI+ alpha 0.05', result_entry_cpdag)
-                        print_method_results('tsboss_iid', 'TS-BOSS IID CPDAG', result_entry_cpdag, ['time_graph', 'time_total'])
-                        print_method_results('dynotears', 'DYNOTEARS', result_entry_cpdag)
-                        print_method_results('tsfges', 'TS-FGES', result_entry_cpdag)
+                        print(f"\n--- Comparison vs TRUE MPDAG ---")
+                        print_method_results('tsboss', 'TS-BOSS MPDAG', result_entry_mpdag, ['time_graph', 'time_total'])
+                        print_method_results('pcmci', 'PCMCI+', result_entry_mpdag)
+                        print_method_results('pcmci_alpha_0.05', 'PCMCI+ alpha 0.05', result_entry_mpdag)
+                        print_method_results('tsboss_iid', 'TS-BOSS IID MPDAG', result_entry_mpdag, ['time_graph', 'time_total'])
+                        print_method_results('dynotears', 'DYNOTEARS', result_entry_mpdag)
+                        print_method_results('tsfges', 'TS-FGES', result_entry_mpdag)
 
                     all_results_dag.append(result_entry_dag)
-                    all_results_cpdag.append(result_entry_cpdag)
+                    all_results_mpdag.append(result_entry_mpdag)
 
-    return {'vs_DAG': all_results_dag, 'vs_CPDAG': all_results_cpdag}
+    return {'vs_DAG': all_results_dag, 'vs_MPDAG': all_results_mpdag}
 
 
 # ============================================================================

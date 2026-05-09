@@ -52,7 +52,7 @@ from numpy.random import default_rng
 
 from .scores import BIC
 from .gst import GST
-from .tsdag_to_tscpdag import tsdag_to_tscpdag
+from .tsdag_to_tsmpdag import tsdag_to_tsmpdag
 
 class TSBOSS:
     """
@@ -78,7 +78,7 @@ class TSBOSS:
         self.order_ = None
         self.gsts_ = None
         self.parents_ = None
-        self.cpdag = {}
+        self.mpdag = {}
         self.dag = {}
 
     @staticmethod
@@ -243,7 +243,7 @@ class TSBOSS:
         unrolled_data = array.T
         return unrolled_data, N
 
-    def run_tsboss(self, data, iid_data=False, get_cpdag=False, verbose=None, pc_alpha=0.01):
+    def run_tsboss(self, data, iid_data=False, get_mpdag=False, verbose=None, pc_alpha=0.01):
         """
         Fit the TS-BOSS algorithm to discover causal structure.
         
@@ -253,8 +253,8 @@ class TSBOSS:
             Time series data with shape (T, N)
         iid_data : bool, default=False
             If True, treat data as independent and identically distributed (IID) and dont unroll
-        get_cpdag : bool, default=True
-            If True, convert DAG to CPDAG using PCMCI+ orientation rules
+        get_mpdag : bool, default=True
+            If True, convert DAG to MPDAG using PCMCI+ orientation rules
         
         Returns:
         --------
@@ -287,9 +287,9 @@ class TSBOSS:
         # Extract parents from GSTs
         self.parents_ = self._extract_parents()
         
-        # Convert to CPDAG if requested
-        if get_cpdag:
-            self.cpdag = self._parents_to_cpdag()
+        # Convert to mpdag if requested
+        if get_mpdag:
+            self.mpdag = self._parents_to_mpdag()
         
         # Print results if verbose
         if verbose:
@@ -350,12 +350,12 @@ class TSBOSS:
         print("\n" + "="*60 + "\n")
 
     
-    def _parents_to_cpdag(self):
-        """Convert parents to CPDAG via DAG."""
+    def _parents_to_mpdag(self):
+        """Convert parents to MPDAG via DAG."""
         self._parents_to_dag()
-        cpdag = tsdag_to_tscpdag(self.dag['graph'])
-        self.cpdag = {'graph': cpdag, 'val_matrix': self.dag['val_matrix']}
-        return self.cpdag
+        mpdag = tsdag_to_tsmpdag(self.dag['graph'])
+        self.mpdag = {'graph': mpdag, 'val_matrix': self.dag['val_matrix']}
+        return self.mpdag
         
     def _parents_to_dag(self):
         """
