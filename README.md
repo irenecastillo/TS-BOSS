@@ -1,10 +1,5 @@
 # TS-BOSS: Time Series Best Order Score Search
 
-**Third-party licenses and attributions:**
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full legal details, licenses, and provenance of included third-party code and dependencies.
-
-# TS-BOSS: Time Series Best Order Score Search
-
 
 ## Overview
 
@@ -112,3 +107,7 @@ This project builds on and includes code from the following open-source reposito
 - **CausalNex — DYNOTEARS** ([repo](https://github.com/mckinsey/causalnex), Apache License 2.0)
 - **Tetrad — FGES with temporal knowledge constraints** ([repo](https://github.com/cmu-phil/tetrad), BSD 2-Clause License)
 - **JPype — Python/Java bridge** ([repo](https://github.com/jpype-project/jpype), Apache License 2.0)
+
+
+**Third-party licenses and attributions:**
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full legal details, licenses and provenance of included third-party code and dependencies.
