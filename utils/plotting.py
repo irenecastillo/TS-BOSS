@@ -1,8 +1,8 @@
 import numbers
 
-# --- Utility functions (global, para todo el módulo) ---
+# --- Utility functions (global, for the entire module) ---
 def fmt_x(v, varied_param):
-    # Igual que plotting_old: enteros sin decimales, floats con 2 decimales, autocorr con 3, degree siempre 2 decimales
+    # Same as plotting_old: integers without decimals, floats with 2 decimals, autocorr with 3, degree always 2 decimals
     if varied_param in ("autocorrelation", "autocorr_coef", "autocorr"):
         return f"{float(v):.3f}"
     if varied_param == "degree":
@@ -226,7 +226,7 @@ def plot_experiments_json(
         folder=folder,
         comparison_type=comparison_type,
     )
-    # Llama directamente a plot_experiments con helpers globales
+    # Calls plot_experiments directly with global helpers
     plot_experiments(
         results=selected,
         varied_param=varied_param,
@@ -285,7 +285,7 @@ def plot_adjacency_components_json(
         folder=folder,
         comparison_type=comparison_type,
     )
-    # Llama directamente a plot_adjacency_components con helpers globales
+    # Calls plot_adjacency_components directly with global helpers
     plot_adjacency_components(
         results=selected,
         varied_param=varied_param,
@@ -367,7 +367,7 @@ def plot_adjacency_components(
         nrows=1,
         ncols=4,
         width_ratios=[1.25, 1.0, 1.0, 1.0],  # Wider box
-        wspace=0.121,  # more horizontal space between plots
+        wspace=0.122,  # more horizontal space between plots
         hspace=0.10,
     )
 
@@ -440,10 +440,10 @@ def plot_adjacency_components(
             step = 2
         if len(xs) > 20:
             step = 3
-        # Usar los valores reales de xs como ticks y labels
+        # Use the actual values of xs as ticks and labels
         ax.set_xticks(x_pos)
-        label_rotation = 45  # Igual que en plotsexperiments
-        label_ha = "right"  # Igual que en plotsexperiments
+        label_rotation = 45  # Same as in plotsexperiments
+        label_ha = "right"  # Same as in plotsexperiments
         ax.set_xticklabels(
             [fmt_x(x, varied_param) for x in xs],
             rotation=label_rotation,
@@ -470,7 +470,7 @@ def plot_adjacency_components(
         lo, hi = min(vals), max(vals)
         lo -= pad
         hi += pad
-        hi += headroom  # añade margen superior igual que plot_experiments
+        hi += headroom  # add upper margin, same as plot_experiments
         if (hi - lo) < min_span:
             mid = 0.5 * (hi + lo)
             lo = mid - min_span / 2
@@ -501,7 +501,7 @@ def plot_adjacency_components(
                 marker=st["marker"],
                 linewidth=4.0,
                 markersize=13,
-                markeredgewidth=1.1,
+                markeredgewidth=1.2,
                 capsize=4,
                 label=method_label(m),
             )
@@ -518,10 +518,9 @@ def plot_adjacency_components(
         ax.set_title(title, fontsize=base_font + 10)
         ax.grid(True, alpha=0.25)
         set_xticks(ax)
-        ax.tick_params(axis="both", labelsize=base_font + 10, pad=2)        
-        ax.tick_params(axis="x", labelsize=base_font + 3)
-
-    # Llama a plot_component para cada subplot
+        ax.tick_params(axis="both", labelsize=base_font + 7, pad=2)        
+        ax.tick_params(axis="y", labelsize=base_font+3 )
+    # Call plot_component for each subplot
     plot_component(ax_contemp, "contemporaneous", f"Contemporaneous adjacency ({metric})")
     plot_component(ax_lagged, "lagged", f"Lagged adjacency ({metric})")
     plot_component(ax_auto, "auto", f"Autoregressive adjacency ({metric})")
@@ -550,45 +549,42 @@ def plot_adjacency_components(
             # If all values are nan, warn in console
             if np.all(np.isnan(y)):
                 print(f"[ADJACENCY WARNING] All values are NaN for method '{m}' and component '{comp}'")
-    ylim = tight_ylim_for([
-        metric_key("contemporaneous"),
-        metric_key("lagged"),
-        metric_key("auto")
-    ])
-    for ax in [ax_contemp, ax_lagged, ax_auto]:
-        ax.set_ylim(*ylim)
 
-    # Adjust y-limits for all components
-    ylim = tight_ylim_for([
-        metric_key("contemporaneous"),
-        metric_key("lagged"),
-        metric_key("auto")
-    ])
-    for ax in [ax_contemp, ax_lagged, ax_auto]:
-        ax.set_ylim(*ylim)
-    # --- Utility for tight y-limits across components ---
-    def tight_ylim_for(keys, pad=0.03, min_span=0.1, clamp=(0, 1), headroom=0.01):
+    # Use tighter y-limits for each component, similar to plot_experiments
+    def tight_ylim_for_component(metric_key, pad=0.01, min_span=0.06, headroom=0.02, clamp=(0.0, 1.01)):
         vals = []
         for m in methods:
-            for k in keys:
-                y, yerr = series(m, k)
-                for yi, ei in zip(y, yerr):
-                    if not np.isnan(yi):
-                        vals.append(yi + ei)
-                        vals.append(yi - ei)
+            y, yerr = series(m, metric_key)
+            for yi, ei in zip(y, yerr):
+                if np.isnan(yi):
+                    continue
+                if np.isnan(ei):
+                    vals.append(yi)
+                else:
+                    vals.append(yi - ei)
+                    vals.append(yi + ei)
         if not vals:
             return clamp
         lo, hi = min(vals), max(vals)
         lo -= pad
         hi += pad
-        hi += headroom  # add top margin like plot_experiments
+        hi += headroom
         if (hi - lo) < min_span:
             mid = 0.5 * (hi + lo)
             lo = mid - min_span / 2
             hi = mid + min_span / 2
+        # Clamp to [0, 1.0] for all plots for consistency
+        lo = max(clamp[0], lo)
+        hi = min(clamp[1], hi)
         return (lo, hi)
+
+    # Set y-limits for each component axis
+    ax_contemp.set_ylim(*tight_ylim_for_component(metric_key("contemporaneous")))
+    ax_lagged.set_ylim(*tight_ylim_for_component(metric_key("lagged")))
+    ax_auto.set_ylim(*tight_ylim_for_component(metric_key("auto")))
+
     fig.subplots_adjust(left=0.04, right=0.99, top=0.78, bottom=0.18)  # lower top for more space
-    fig.supxlabel(x_label, fontsize=base_font + 7, y=0.0)
+    fig.supxlabel(x_label, fontsize=base_font + 7, y=-0.02)
     plt.show()
 
 
@@ -637,13 +633,8 @@ def plot_experiments(
     >>> fixed = {"Nº nodes (N)": 5, "Autocorr. coef. (a)": 0.3, "Max. time lag (τ_max)": 3}
     >>> plot_experiments(results, "T", fixed, methods=["tsboss", "pcmci", "tsboss_iid"])
     """
-    # --- x values present in results ---
-    xs = sorted({r[varied_param] for r in results})
-    if not xs:
-        raise ValueError(f"No results found for varied_param='{varied_param}'")
 
-    x_pos = np.arange(len(xs))
-
+    
     nice = {
         "T": "Sample size (T)",
         "degree": "Graph density (d)",
@@ -663,6 +654,12 @@ def plot_experiments(
     if not methods:
         raise ValueError("No method metrics found (expected keys like '<method>_adj_precision').")
 
+    # Define xs and x_pos after methods validation, before inner functions
+    xs = sorted({r[varied_param] for r in results})
+    if not xs:
+        raise ValueError(f"No results found for varied_param='{varied_param}'")
+    x_pos = np.arange(len(xs))
+
     fixed_box_font = base_font if fixed_params_font is None else fixed_params_font
     def series(method, metric):
         y, yerr = [], []
@@ -673,16 +670,10 @@ def plot_experiments(
         return np.array(y, float), np.array(yerr, float)
 
     def set_xticks(ax):
-        # Like plotting_old: dynamic step based on number of xs
-        step = 1
-        if len(xs) > 12:
-            step = 2
-        if len(xs) > 20:
-            step = 3
-
-        idx = np.arange(0, len(xs), step)
+        # Show all X-axis labels, no skips
+        idx = np.arange(0, len(xs), 1)
         is_compact_xtick_layout = varied_param in ("N_nodes", "autocorrelation", "degree", "T")
-        label_rotation = 35
+        label_rotation = 45
         label_ha = "right"
         x_pad = 1 if is_compact_xtick_layout else 3
 
@@ -695,7 +686,7 @@ def plot_experiments(
         ax.tick_params(axis="x", labelsize=base_font, pad=x_pad)
 
     fig = plt.figure(figsize=figsize)
-    fig.subplots_adjust(left=0.04, right=0.99, top=0.78, bottom=0.13)  # bottom más bajo para el pie
+    fig.subplots_adjust(left=0.04, right=0.99, top=0.78, bottom=0.13)  # lower bottom for the footer
     gs = fig.add_gridspec(
         nrows=2,
         ncols=3,
@@ -744,7 +735,7 @@ def plot_experiments(
     fixed_lines = "\n".join([f"{k:<{k_w}} : {v}" for k, v in rows])
 
     ax_box.text(
-        0.015,  # más a la izquierda
+        0.015,  # further to the left
         0.965,
         "Fixed hyperparams",
         fontsize=fixed_box_font + 3,
@@ -754,7 +745,7 @@ def plot_experiments(
         transform=ax_box.transAxes,
     )
     ax_box.text(
-        0.015,  # más a la izquierda
+        0.015,  # further to the left
         0.87,
         fixed_lines,
         fontsize=fixed_box_font + 2,
@@ -785,8 +776,8 @@ def plot_experiments(
             common = dict(
                 linestyle="-",
                 marker=st["marker"],
-                linewidth=4.0,  # líneas más gruesas
-                markersize=13,  # punteros más grandes
+                linewidth=4.0,  # thicker lines
+                markersize=13,  # larger markers
                 markeredgewidth=1.1,
                 capsize=4,
                 label=method_label(m),
@@ -808,6 +799,8 @@ def plot_experiments(
         ax.grid(True, alpha=0.25)
         set_xticks(ax)
         ax.tick_params(axis="both", labelsize=base_font + 3)
+        
+        # ax.tick_params(axis="y", labelsize=base_font + 7) for autocorrelation plot
 
     def tight_ylim_for(metrics, pad=0.01, min_span=0.06, headroom=0.03, clamp=(0.0, 1.02)):
         vals = []
@@ -835,10 +828,10 @@ def plot_experiments(
         lo = max(clamp[0], lo)
         hi = min(clamp[1], hi)
         return (lo, hi)
-
-    adj_ylim = tight_ylim_for(["adj_precision", "adj_recall"], pad=0.01, headroom=0.03, min_span=0.06)
+    adj_ylim = tight_ylim_for(["adj_precision", "adj_recall"], pad=0.05, headroom=0.03, min_span=0.06)
     plot_metric(ax_adj_p, "adj_precision", "Adjacency precision", ylim=adj_ylim)
     plot_metric(ax_adj_r, "adj_recall", "Adjacency recall", ylim=adj_ylim)
+                    # Restore previous y-axis formatting
     plot_metric(ax_time, "time_total", "Runtime (s)")
     ori_ylim = tight_ylim_for(["ori_precision", "ori_recall"], pad=0.05, headroom=0.03, min_span=0.06)
     plot_metric(ax_ori_p, "ori_precision", "Orientation precision", ylim=ori_ylim)
@@ -852,9 +845,9 @@ def plot_experiments(
         loc="upper center",
         ncol=max(1, len(methods)),
         frameon=False,
-        markerscale=0.9,  # más pequeño para que se aprecie mejor la forma
-        fontsize=base_font,  # leyenda mucho más pequeña
-        bbox_to_anchor=(0.5, 1.07),  # más cerca de los plots
+        markerscale=0.9,  # smaller so the shape is better appreciated
+        fontsize=base_font ,  # much smaller legend
+        bbox_to_anchor=(0.5, 1.07),  # closer to the plots
     )
     fig.supxlabel(x_label, fontsize=base_font + 7)
     fig.subplots_adjust(left=0.04, right=0.99, top=0.95, bottom=0.12)

@@ -5354,7 +5354,7 @@
       ],
       "autocorrelation": [
         0.3
-      ],
+      ], 
       "tau_max_true": 3,
       "lag_max": 3,
       "pcmci_alpha": 0.01,
