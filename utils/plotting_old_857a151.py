@@ -91,10 +91,12 @@ def _normalize_comparison_type(comparison_type: str) -> str:
         "dag": "vs_DAG",
         "vs_cpdag": "vs_CPDAG",
         "cpdag": "vs_CPDAG",
+        "vs_mpdag": "vs_CPDAG",  # treat mpdag as cpdag
+        "mpdag": "vs_CPDAG",
     }
     if value not in mapping:
         raise ValueError(
-            "comparison_type must be one of {'vs_DAG', 'vs_CPDAG', 'dag', 'cpdag'}"
+            "comparison_type must be one of {'vs_DAG', 'vs_CPDAG', 'dag', 'cpdag', 'mpdag'}"
         )
     return mapping[value]
 
@@ -147,7 +149,7 @@ def load_results_json_for_plot(
     folder: str = "results",
     comparison_type: str = "vs_CPDAG",
 ) -> List[Dict[str, Any]]:
-    """Load JSON results and select DAG/CPDAG comparison rows.
+    """Load JSON results and select DAG/CPDAG/MPDAG comparison rows.
 
     Parameters
     ----------
@@ -156,30 +158,45 @@ def load_results_json_for_plot(
     folder : str, optional
         Folder containing results (default: "results")
     comparison_type : str, optional
-        Comparison to select. Accepted: "vs_DAG", "vs_CPDAG", "dag", "cpdag".
+        Comparison to select. Accepted: "vs_DAG", "vs_CPDAG", "dag", "cpdag", "vs_mpdag", "mpdag".
 
     Returns
     -------
     list of dict
         Selected rows to pass directly to plot_experiments.
     """
+
+    # Explicitly allow 'vs_mpdag' as a valid comparison
     comp_key = _normalize_comparison_type(comparison_type)
     results = load_results_json(name=name, folder=folder)
 
-    # New JSON format from run_experiments.py: {'vs_DAG': [...], 'vs_CPDAG': [...]}.
-    if isinstance(results, dict) and ("vs_DAG" in results or "vs_CPDAG" in results):
-        selected = results.get(comp_key, [])
-    # Fallback: list of rows with embedded comparison_type.
+    # If the user explicitly requests 'vs_mpdag' or 'mpdag', use those keys
+    if comparison_type is not None and str(comparison_type).strip().lower().replace("-", "_") in ["vs_mpdag", "mpdag"]:
+        comp_keys = ["vs_mpdag", "mpdag", "vs_CPDAG", "vs_MPDAG"]  
+    elif comp_key == "vs_CPDAG":
+        # If CPDAG comparison, also look for mpdag equivalents
+        comp_keys = ["vs_CPDAG", "vs_mpdag", "mpdag", "vs_MPDAG"]
+    else:
+        comp_keys = [comp_key]
+
+    if isinstance(results, dict):
+        selected = []
+        for k in comp_keys:
+            selected = results.get(k, [])
+            if selected:
+                comp_key = k  # Update for setdefault below
+                break
     elif isinstance(results, list):
-        selected = [r for r in results if r.get("comparison_type") == comp_key]
+        # Search for rows whose comparison is in the equivalent keys
+        selected = [r for r in results if _normalize_comparison_type(r.get("comparison_type", "")) in comp_keys]
     else:
         raise ValueError(
-            "Unexpected JSON schema. Expected dict with keys 'vs_DAG'/'vs_CPDAG' or a list of rows."
+            "Unexpected JSON schema. Expected dict with keys 'vs_DAG'/'vs_CPDAG'/'vs_mpdag' or a list of rows."
         )
 
     if not selected:
         raise ValueError(
-            f"No rows found for comparison_type='{comp_key}' in JSON file '{name}'."
+            f"No rows found for comparison_type in {comp_keys} in JSON file '{name}'."
         )
 
     for row in selected:
