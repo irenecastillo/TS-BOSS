@@ -1,3 +1,67 @@
+﻿import numbers
+
+# --- Utility functions (global, for the entire module) ---
+def fmt_x(v, varied_param):
+    # Same as plotting_old: integers without decimals, floats with 2 decimals, autocorr with 3, degree always 2 decimals
+    if varied_param in ("autocorrelation", "autocorr_coef", "autocorr"):
+        return f"{float(v):.3f}"
+    if varied_param == "degree":
+        return f"{float(v):.2f}"
+    if isinstance(v, (float, np.floating, numbers.Number)):
+        if float(v).is_integer():
+            return str(int(v))
+        return f"{float(v):.2f}"
+    return str(v)
+
+def pretty_value(k, v):
+    s = str(v)
+    s = s.replace(r"\times", "x").replace("$", "")
+    s = s.replace(r"\lfloor", "").replace(r"\rfloor", "")
+    s = s.replace("{", "").replace("}", "")
+    return s
+
+def pretty_key(k):
+    if k in ("tau_max", r"\tau_max", "¤ä_max"):
+        return "tau_max"
+    if k in ("alpha_pcmci", r"\alpha_pcmci", "αPCMCI", "α_pcmci", "α_PCMCI"):
+        return "alpha_pcmci"
+    return k
+
+def method_label(method):
+    mapping = {
+        "tsboss": "TS-BOSS",
+        "tsboss_dag": "TS-BOSS (DAG)",
+        "pcmci": "PCMCI+",
+        "pcmci_alpha_0.05": "PCMCI+ (α=0.05)",
+        "tsboss_iid": "TS-BOSS (IID)",
+        "tsboss_iid_dag": "TS-BOSS (IID,DAG)",
+        "dynotears": "DYNOTEARS",
+        "tsfges": "TS-FGES",
+        "svarfges": "TS-FGES",
+    }
+    return mapping.get(method, method.replace("_", " ").upper())
+
+def infer_methods(rows, suffix):
+    if not rows:
+        return []
+    detected = set()
+    for k in rows[0].keys():
+        if k.endswith(suffix):
+            detected.add(k[: -len(suffix)])
+    preferred_order = [
+        "tsboss",
+        "tsboss_dag",
+        "pcmci",
+        "pcmci_alpha_0.05",
+        "tsboss_iid",
+        "tsboss_iid_dag",
+        "dynotears",
+        "tsfges",
+        "svarfges",
+    ]
+    ordered = [m for m in preferred_order if m in detected]
+    ordered += sorted(m for m in detected if m not in preferred_order)
+    return ordered
 """
 Plotting utilities for TS-BOSS experimental results
 
@@ -19,20 +83,20 @@ from save_load_results_json import load_results_json
 def _normalize_comparison_type(comparison_type: str) -> str:
     """Normalize comparison type aliases to canonical keys."""
     if comparison_type is None:
-        return "vs_MPDAG"
+        return "vs_CPDAG"
 
     value = str(comparison_type).strip().lower().replace("-", "_")
     mapping = {
         "vs_dag": "vs_DAG",
         "dag": "vs_DAG",
-        "vs_mpdag": "vs_MPDAG",
-        "mpdag": "vs_MPDAG",        
         "vs_cpdag": "vs_CPDAG",
         "cpdag": "vs_CPDAG",
+        "vs_mpdag": "vs_CPDAG",  # treat mpdag as cpdag
+        "mpdag": "vs_CPDAG",
     }
     if value not in mapping:
         raise ValueError(
-            "comparison_type must be one of {'vs_DAG', 'vs_MPDAG', 'dag', 'mpdag', 'vs_CPDAG', 'cpdag'} (case-insensitive, dashes/underscores ignored)."
+            "comparison_type must be one of {'vs_DAG', 'vs_CPDAG', 'dag', 'cpdag', 'mpdag'}"
         )
     return mapping[value]
 
@@ -40,7 +104,7 @@ def _normalize_comparison_type(comparison_type: str) -> str:
 def load_results_txt(
     name: str,
     folder: str = "results",
-    default_comparison_type: str = "vs_MPDAG",
+    default_comparison_type: str = "vs_CPDAG",
 ) -> List[Dict[str, Any]]:
     """
     Load experiment results from text file.
@@ -50,9 +114,9 @@ def load_results_txt(
     name : str
         Filename (with or without .txt extension)
     folder : str, optional
-        Folder containing results (default: "results")
+        Folder containing results (default: "results_experiments")
     default_comparison_type : str, optional
-        Default comparison type if not specified in file (default: "vs_MPDAG")
+        Default comparison type if not specified in file (default: "vs_CPDAG")
     
     Returns
     -------
@@ -83,9 +147,9 @@ def load_results_txt(
 def load_results_json_for_plot(
     name: str,
     folder: str = "results",
-    comparison_type: str = "vs_MPDAG",
+    comparison_type: str = "vs_CPDAG",
 ) -> List[Dict[str, Any]]:
-    """Load JSON results and select DAG/MPDAG comparison rows.
+    """Load JSON results and select DAG/CPDAG/MPDAG comparison rows.
 
     Parameters
     ----------
@@ -94,47 +158,45 @@ def load_results_json_for_plot(
     folder : str, optional
         Folder containing results (default: "results")
     comparison_type : str, optional
-        Comparison to select. Accepted: "vs_DAG", "vs_MPDAG", "dag", "mpdag".
+        Comparison to select. Accepted: "vs_DAG", "vs_CPDAG", "dag", "cpdag", "vs_mpdag", "mpdag".
 
     Returns
     -------
     list of dict
         Selected rows to pass directly to plot_experiments.
     """
+
+    # Explicitly allow 'vs_mpdag' as a valid comparison
     comp_key = _normalize_comparison_type(comparison_type)
     results = load_results_json(name=name, folder=folder)
 
-    # Accept both 'vs_MPDAG' and 'vs_CPDAG' as equivalent keys for compatibility
+    # If the user explicitly requests 'vs_mpdag' or 'mpdag', use those keys
+    if comparison_type is not None and str(comparison_type).strip().lower().replace("-", "_") in ["vs_mpdag", "mpdag"]:
+        comp_keys = ["vs_mpdag", "mpdag", "vs_CPDAG", "vs_MPDAG"]  
+    elif comp_key == "vs_CPDAG":
+        # If CPDAG comparison, also look for mpdag equivalents
+        comp_keys = ["vs_CPDAG", "vs_mpdag", "mpdag", "vs_MPDAG"]
+    else:
+        comp_keys = [comp_key]
+
     if isinstance(results, dict):
-        selected = results.get(comp_key, [])
-        # If not found, try the alternative key
-        if not selected:
-            alt_key = None
-            if comp_key == "vs_MPDAG":
-                alt_key = "vs_CPDAG"
-            elif comp_key == "vs_CPDAG":
-                alt_key = "vs_MPDAG"
-            if alt_key:
-                selected = results.get(alt_key, [])
+        selected = []
+        for k in comp_keys:
+            selected = results.get(k, [])
+            if selected:
+                comp_key = k  # Update for setdefault below
+                break
     elif isinstance(results, list):
-        selected = [r for r in results if r.get("comparison_type") == comp_key]
-        # If not found, try the alternative key
-        if not selected:
-            alt_key = None
-            if comp_key == "vs_MPDAG":
-                alt_key = "vs_CPDAG"
-            elif comp_key == "vs_CPDAG":
-                alt_key = "vs_MPDAG"
-            if alt_key:
-                selected = [r for r in results if r.get("comparison_type") == alt_key]
+        # Search for rows whose comparison is in the equivalent keys
+        selected = [r for r in results if _normalize_comparison_type(r.get("comparison_type", "")) in comp_keys]
     else:
         raise ValueError(
-            "Unexpected JSON schema. Expected dict with keys 'vs_DAG'/'vs_MPDAG' or a list of rows."
+            "Unexpected JSON schema. Expected dict with keys 'vs_DAG'/'vs_CPDAG'/'vs_mpdag' or a list of rows."
         )
 
     if not selected:
         raise ValueError(
-            f"No rows found for comparison_type='{comp_key}' or its alias in JSON file '{name}'."
+            f"No rows found for comparison_type in {comp_keys} in JSON file '{name}'."
         )
 
     for row in selected:
@@ -147,7 +209,7 @@ def plot_experiments_json(
     name: str,
     varied_param: str,
     fixed_params: Dict[str, Any],
-    comparison_type: str = "vs_MPDAG",
+    comparison_type: str = "vs_CPDAG",
     methods=None,
     folder: str = "results",
     rotate_xticks: int = 0,
@@ -166,7 +228,7 @@ def plot_experiments_json(
     fixed_params : dict
         Fixed parameters shown in the left settings box.
     comparison_type : str, optional
-        Which comparison to visualize: "vs_DAG"/"vs_MPDAG" (aliases: "dag"/"mpdag").
+        Which comparison to visualize: "vs_DAG"/"vs_CPDAG" (aliases: "dag"/"cpdag").
     methods : list of str, optional
         Method keys to include (order preserved). If None, auto-detect from metrics.
         Supports: "tsboss", "tsboss_dag", "pcmci", "pcmci_alpha_0.05",
@@ -181,7 +243,7 @@ def plot_experiments_json(
         folder=folder,
         comparison_type=comparison_type,
     )
-
+    # Calls plot_experiments directly with global helpers
     plot_experiments(
         results=selected,
         varied_param=varied_param,
@@ -198,7 +260,7 @@ def plot_adjacency_components_json(
     name: str,
     varied_param: str,
     fixed_params: Dict[str, Any],
-    comparison_type: str = "vs_MPDAG",
+    comparison_type: str = "vs_CPDAG",
     methods=None,
     folder: str = "results",
     metric: str = "f1",
@@ -206,6 +268,7 @@ def plot_adjacency_components_json(
     figsize=(16, 10),
     base_font: int = 14,
     fixed_params_font: int = 14,
+    title: str = None,
 ):
     """Load a JSON experiment file and plot adjacency components in a 2x2 layout.
 
@@ -224,7 +287,7 @@ def plot_adjacency_components_json(
     fixed_params : dict
         Fixed parameters shown in the left settings box.
     comparison_type : str, optional
-        Which comparison to visualize: "vs_DAG"/"vs_MPDAG" (aliases: "dag"/"mpdag").
+        Which comparison to visualize: "vs_DAG"/"vs_CPDAG" (aliases: "dag"/"cpdag").
     methods : list of str, optional
         Method keys to include (order preserved). If None, auto-detect from metrics.
     folder : str, optional
@@ -239,7 +302,7 @@ def plot_adjacency_components_json(
         folder=folder,
         comparison_type=comparison_type,
     )
-
+    # Calls plot_adjacency_components directly with global helpers
     plot_adjacency_components(
         results=selected,
         varied_param=varied_param,
@@ -250,6 +313,7 @@ def plot_adjacency_components_json(
         figsize=figsize,
         base_font=base_font,
         fixed_params_font=fixed_params_font,
+        title=title,
     )
 
 
@@ -263,6 +327,7 @@ def plot_adjacency_components(
     figsize=(16, 10),
     base_font=14,
     fixed_params_font=None,
+    title=None,
 ):
     """Plot adjacency components (contemporaneous, lagged, autoregressive).
 
@@ -283,119 +348,50 @@ def plot_adjacency_components(
     nice = {
         "T": "Sample size (T)",
         "degree": "Graph density (d)",
-        "autocorrelation": "Autocorrelation (ρ)",
+        "autocorrelation": "Autocorrelation (a)",
         "N_nodes": "Number of nodes (N)",
     }
     x_label = nice.get(varied_param, varied_param)
     if varied_param in ("autocorrelation", "autocorr_coef", "autocorr", "a"):
         x_label = "Autocorrelation (a)"
 
-    def fmt_x(v):
+    def fmt_x(v, varied_param):
         if varied_param in ("autocorrelation", "autocorr_coef", "autocorr"):
             return f"{float(v):.3f}"
         return f"{v:.2f}" if isinstance(v, (float, np.floating)) else str(v)
+    
+    def series(method, metric):
+        y, yerr = [], []
+        for x in xs:
+            r = row_for(x)
+            y.append(np.nan if r is None else r.get(f"{method}_{metric}", np.nan))
+            yerr.append(np.nan if r is None else r.get(f"{method}_{metric}_se", np.nan))
+        return np.array(y, float), np.array(yerr, float)
 
     def row_for(x):
         return next((r for r in results if r[varied_param] == x), None)
 
-    def infer_methods(rows):
-        if not rows:
-            return []
-        detected = set()
-        suffix = f"_adj_contemporaneous_{metric}"
-        for k in rows[0].keys():
-            if k.endswith(suffix):
-                detected.add(k[: -len(suffix)])
-
-        preferred_order = [
-            "tsboss",
-            "tsboss_dag",
-            "pcmci",
-            "pcmci_alpha_0.05",
-            "tsboss_iid",
-            "tsboss_iid_dag",
-            "dynotears",
-            "tsfges",
-            "svarfges",
-        ]
-        ordered = [m for m in preferred_order if m in detected]
-        ordered += sorted(m for m in detected if m not in preferred_order)
-        return ordered
-
-    methods = tuple(methods) if methods is not None else tuple(infer_methods(results))
+    # Determine methods if not explicitly provided
+    suffix = f"_adj_contemporaneous_{metric}"
+    methods_tuple = tuple(methods) if methods is not None else tuple(infer_methods(results, suffix))
+    methods = methods_tuple
     if not methods:
-        raise ValueError(
-            "No method metrics found (expected keys like '<method>_adj_contemporaneous_f1')."
-        )
-
-    fixed_box_font = base_font if fixed_params_font is None else fixed_params_font
-
-    def method_label(method):
-        mapping = {
-            "tsboss": "TS-BOSS",
-            "tsboss_dag": "TS-BOSS (DAG)",
-            "pcmci": "PCMCI+",
-            "pcmci_alpha_0.05": "PCMCI+ (α=0.05)",
-            "tsboss_iid": "TS-BOSS (IID)",
-            "tsboss_iid_dag": "TS-BOSS (IID,DAG)",
-            "dynotears": "DYNOTEARS",
-            "tsfges": "TS-FGES",            
-            "svarfges": "TS-FGES",
-        }
-        return mapping.get(method, method.replace("_", " ").upper())
-
-    def series(method, metric_key):
-        y, yerr = [], []
-        for x in xs:
-            r = row_for(x)
-            y.append(np.nan if r is None else r.get(f"{method}_{metric_key}", np.nan))
-            yerr.append(np.nan if r is None else r.get(f"{method}_{metric_key}_se", np.nan))
-        return np.array(y, float), np.array(yerr, float)
-
-    def set_xticks(ax):
-        step = 1
-        if len(xs) > 12:
-            step = 2
-        if len(xs) > 20:
-            step = 3
-
-        idx = np.arange(0, len(xs), step)
-        ax.set_xticks(x_pos[idx])
-        ax.set_xticklabels(
-            [fmt_x(xs[i]) for i in idx],
-            rotation=rotate_xticks,
-            ha="right" if rotate_xticks else "center",
-        )
-        ax.tick_params(axis="x", labelsize=base_font)
-
-    def pretty_value(k, v):
-        s = str(v)
-        s = s.replace(r"\times", "×").replace("$", "")
-        s = s.replace(r"\lfloor", "").replace(r"\rfloor", "")
-        s = s.replace("{", "").replace("}", "")
-        return s
-
-    def pretty_key(k):
-        if k in ("tau_max", r"\tau_max", "τ_max"):
-            return "tau_max"
-        if k in ("alpha_pcmci", r"\alpha_pcmci", "αPCMCI", "α_pcmci", "α_PCMCI"):
-            return "alpha_pcmci"
-        return k
-
-    fig = plt.figure(figsize=figsize)
+        raise ValueError("No method metrics found (expected keys like '<method>_adj_contemporaneous_{metric}').")
+    # 1x4 layout: settings | lagged | autoregressive | contemporaneous
+    # Make the box wider
+    fig = plt.figure(figsize=(figsize[0], max(figsize[1], 7)))
     gs = fig.add_gridspec(
         nrows=1,
         ncols=4,
-        width_ratios=[1.0, 1.0, 1.0, 1.0],
-        height_ratios=[1.0],
-        wspace=0.18,
-        hspace=0.30,
+        width_ratios=[1.25, 1.0, 1.0, 1.0],  # Wider box
+        wspace=0.122,  # more horizontal space between plots
+        hspace=0.10,
     )
 
     ax_box = fig.add_subplot(gs[0, 0])
-    ax_contemp = fig.add_subplot(gs[0, 1])
-    ax_lagged = fig.add_subplot(gs[0, 2])
-    ax_auto = fig.add_subplot(gs[0, 3])
+    ax_lagged = fig.add_subplot(gs[0, 1])
+    ax_auto = fig.add_subplot(gs[0, 2])
+    ax_contemp = fig.add_subplot(gs[0, 3])
 
     ax_box.axis("off")
     ax_box.add_patch(
@@ -405,12 +401,15 @@ def plot_adjacency_components(
             0.92,
             boxstyle="round,pad=0.03",
             linewidth=1.0,
-            edgecolor="0.75", 
+            edgecolor="0.75",
             facecolor="white",
             transform=ax_box.transAxes,
         )
     )
-    ax_box.set_title("Experiment settings", fontsize=base_font + 3, pad=6)
+    if title:
+        ax_box.set_title(title, fontsize=base_font + 10, pad=12)
+    else:
+        ax_box.set_title("Experiment settings", fontsize=base_font + 10, pad=12)
 
     order = [
         "N_nodes",
@@ -428,6 +427,8 @@ def plot_adjacency_components(
     rows = [(pretty_key(k), pretty_value(k, v)) for k, v in items]
     k_w = max((len(k) for k, _ in rows), default=10)
     fixed_lines = "\n".join([f"{k:<{k_w}} : {v}" for k, v in rows])
+    
+    fixed_box_font = base_font if fixed_params_font is None else fixed_params_font
 
     ax_box.text(
         0.06,
@@ -450,8 +451,48 @@ def plot_adjacency_components(
         transform=ax_box.transAxes,
     )
 
+    def set_xticks(ax):
+        step = 1
+        if len(xs) > 12:
+            step = 2
+        if len(xs) > 20:
+            step = 3
+        # Use the actual values of xs as ticks and labels
+        ax.set_xticks(x_pos)
+        label_rotation = 45  # Same as in plotsexperiments
+        label_ha = "right"  # Same as in plotsexperiments
+        ax.set_xticklabels(
+            [fmt_x(x, varied_param) for x in xs],
+            rotation=label_rotation,
+            ha=label_ha
+        )
+        ax.tick_params(axis="x", labelsize=base_font +10, pad=17)
+        ax.tick_params(axis="y", labelsize=base_font + 10, pad=2)
+
     def metric_key(component):
         return f"adj_{component}_{metric}"
+
+    # --- Utility for tight y-limits across components ---
+    def tight_ylim_for(keys, pad=0.03, min_span=0.1, clamp=(0, 1), headroom=0.01):
+        vals = []
+        for m in methods:
+            for k in keys:
+                y, yerr = series(m, k)
+                for yi, ei in zip(y, yerr):
+                    if not np.isnan(yi):
+                        vals.append(yi + ei)
+                        vals.append(yi - ei)
+        if not vals:
+            return clamp
+        lo, hi = min(vals), max(vals)
+        lo -= pad
+        hi += pad
+        hi += headroom  # add upper margin, same as plot_experiments
+        if (hi - lo) < min_span:
+            mid = 0.5 * (hi + lo)
+            lo = mid - min_span / 2
+            hi = mid + min_span / 2
+        return (lo, hi)
 
     def plot_component(ax, component, title):
         style = {
@@ -462,27 +503,25 @@ def plot_adjacency_components(
             "tsboss_iid": {"marker": "v"},
             "tsboss_iid_dag": {"marker": "p"},
             "dynotears": {"marker": "X"},
-            "tsfges": {"marker": "h"},
+            "tsfges": {"marker": "D"},  # rombo
+            "svarfges": {"marker": "D"},  # rombo
         }
-
         mkey = metric_key(component)
         for m in methods:
             y, yerr = series(m, mkey)
             mask = ~np.isnan(y)
             if not np.any(mask):
                 continue
-
             st = style.get(m, {"marker": "o"})
             common = dict(
                 linestyle="-",
                 marker=st["marker"],
-                linewidth=2.6,
-                markersize=9,
-                markeredgewidth=0.8,
-                capsize=3,
+                linewidth=4.0,
+                markersize=13,
+                markeredgewidth=1.2,
+                capsize=4,
                 label=method_label(m),
             )
-
             if np.any(~np.isnan(yerr[mask])):
                 ax.errorbar(
                     x_pos[mask],
@@ -492,71 +531,77 @@ def plot_adjacency_components(
                 )
             else:
                 ax.plot(x_pos[mask], y[mask], **common)
-
-        ax.set_title(title, fontsize=base_font + 3)
+                
+        ax.set_title(title, fontsize=base_font + 10)
         ax.grid(True, alpha=0.25)
         set_xticks(ax)
-        ax.tick_params(axis="both", labelsize=base_font + 1)
+        ax.tick_params(axis="both", labelsize=base_font + 7, pad=2)        
+        ax.tick_params(axis="y", labelsize=base_font+3 )
+    # Call plot_component for each subplot
+    plot_component(ax_contemp, "contemporaneous", f"Contemporaneous adjacency ({metric})")
+    plot_component(ax_lagged, "lagged", f"Lagged adjacency ({metric})")
+    plot_component(ax_auto, "auto", f"Autoregressive adjacency ({metric})")
 
-    def tight_ylim_for(metric_keys, pad=0.02, min_span=0.08, headroom=0.03, clamp=(0.0, 1.02)):
-        vals = []
-        for mkey in metric_keys:
-            for m in methods:
-                y, yerr = series(m, mkey)
-                for yi, ei in zip(y, yerr):
-                    if np.isnan(yi):
-                        continue
-                    if np.isnan(ei):
-                        vals.append(yi)
-                    else:
-                        vals.append(yi - ei)
-                        vals.append(yi + ei)
-
-        if not vals:
-            return clamp
-
-        lo, hi = min(vals), max(vals)
-        lo -= pad
-        hi += pad + headroom
-
-        if (hi - lo) < min_span:
-            mid = 0.5 * (hi + lo)
-            lo = mid - min_span / 2
-            hi = mid + min_span / 2
-
-        lo = max(clamp[0], lo)
-        hi = min(clamp[1], hi)
-        return lo, hi
-
-    component_keys = [
-        metric_key("contemporaneous"),
-        metric_key("lagged"),
-        metric_key("auto"),
-    ]
-    common_ylim = tight_ylim_for(component_keys)
-
-    plot_component(ax_contemp, "contemporaneous", f"Adjacency contemporaneous ({metric})")
-    plot_component(ax_lagged, "lagged", f"Adjacency lagged ({metric})")
-    plot_component(ax_auto, "auto", f"Adjacency autoregressive ({metric})")
-
-    ax_contemp.set_ylim(*common_ylim)
-    ax_lagged.set_ylim(*common_ylim)
-    ax_auto.set_ylim(*common_ylim)
-
+    # Global legend
     handles, labels = ax_contemp.get_legend_handles_labels()
+    if not handles:
+        handles, labels = ax_lagged.get_legend_handles_labels()
     fig.legend(
         handles,
         labels,
         loc="upper center",
         ncol=max(1, len(methods)),
         frameon=False,
-        markerscale=1.35,
+        markerscale=1.3,  # larger marker in legend
+        fontsize=base_font + 8,
+        bbox_to_anchor=(0.5, 0.965),  # closer to plots
     )
 
-    fig.supxlabel(x_label, fontsize=base_font + 4)
-    fig.supylabel("Score", fontsize=base_font + 2)
-    fig.subplots_adjust(left=0.05, right=0.99, top=0.90, bottom=0.12)
+    # Adjust y-limits for all components and check data
+    for comp, ax in zip(["contemporaneous", "lagged", "auto"], [ax_contemp, ax_lagged, ax_auto]):
+        mkey = metric_key(comp)
+        # Data check
+        for m in methods:
+            y, yerr = series(m, mkey)
+            # If all values are nan, warn in console
+            if np.all(np.isnan(y)):
+                print(f"[ADJACENCY WARNING] All values are NaN for method '{m}' and component '{comp}'")
 
+    # Use tighter y-limits for each component, similar to plot_experiments
+    def tight_ylim_for_component(metric_key, pad=0.01, min_span=0.06, headroom=0.02, clamp=(0.0, 1.01)):
+        vals = []
+        for m in methods:
+            y, yerr = series(m, metric_key)
+            for yi, ei in zip(y, yerr):
+                if np.isnan(yi):
+                    continue
+                if np.isnan(ei):
+                    vals.append(yi)
+                else:
+                    vals.append(yi - ei)
+                    vals.append(yi + ei)
+        if not vals:
+            return clamp
+        lo, hi = min(vals), max(vals)
+        lo -= pad
+        hi += pad
+        hi += headroom
+        if (hi - lo) < min_span:
+            mid = 0.5 * (hi + lo)
+            lo = mid - min_span / 2
+            hi = mid + min_span / 2
+        # Clamp to [0, 1.0] for all plots for consistency
+        lo = max(clamp[0], lo)
+        hi = min(clamp[1], hi)
+        return (lo, hi)
+
+    # Set y-limits for each component axis
+    ax_contemp.set_ylim(*tight_ylim_for_component(metric_key("contemporaneous")))
+    ax_lagged.set_ylim(*tight_ylim_for_component(metric_key("lagged")))
+    ax_auto.set_ylim(*tight_ylim_for_component(metric_key("auto")))
+
+    fig.subplots_adjust(left=0.04, right=0.99, top=0.78, bottom=0.18)  # lower top for more space
+    fig.supxlabel(x_label, fontsize=base_font + 7, y=-0.02)
     plt.show()
 
 
@@ -578,7 +623,7 @@ def plot_experiments(
     - Adjacency precision/recall
     - Runtime comparison
     - Orientation precision/recall
-    
+        ax.set_title(title, fontsize=base_font + 10)
     Parameters
     ----------
     results : list of dict
@@ -602,78 +647,37 @@ def plot_experiments(
     Example
     -------
     >>> results = load_results_txt("nsamplesize_experiments_cpdag_20260227_200511.txt")
-    >>> fixed = {"Nº nodes (N)": 5, "Autocorr. coef. (a)": 0.3, "Max. time lag (τ_max)": 3}
+    >>> fixed = {"N┬║ nodes (N)": 5, "Autocorr. coef. (a)": 0.3, "Max. time lag (¤ä_max)": 3}
     >>> plot_experiments(results, "T", fixed, methods=["tsboss", "pcmci", "tsboss_iid"])
     """
-    # --- x values present in results ---
-    xs = sorted({r[varied_param] for r in results})
-    if not xs:
-        raise ValueError(f"No results found for varied_param='{varied_param}'")
 
-    x_pos = np.arange(len(xs))
-
-    # labels
+    
     nice = {
         "T": "Sample size (T)",
         "degree": "Graph density (d)",
-        "autocorrelation": "Autocorrelation (ρ)",
+        "autocorrelation": "Autocorrelation (a)",
         "N_nodes": "Number of nodes (N)",
     }
     x_label = nice.get(varied_param, varied_param)
     if varied_param in ("autocorrelation", "autocorr_coef", "autocorr", "a"):
         x_label = "Autocorrelation (a)"
 
-    def fmt_x(v):
-        if varied_param in ("autocorrelation", "autocorr_coef", "autocorr"):
-            return f"{float(v):.3f}"
-        return f"{v:.2f}" if isinstance(v, (float, np.floating)) else str(v)
-
     def row_for(x):
         return next((r for r in results if r[varied_param] == x), None)
 
-    def infer_methods(rows):
-        if not rows:
-            return []
-        detected = set()
-        for k in rows[0].keys():
-            if k.endswith("_adj_precision"):
-                detected.add(k[: -len("_adj_precision")])
 
-        preferred_order = [
-            "tsboss",
-            "tsboss_dag",
-            "pcmci",
-            "pcmci_alpha_0.05",
-            "tsboss_iid",
-            "tsboss_iid_dag",
-            "dynotears",
-            "tsfges",
-            "svarfges",
-        ]
-        ordered = [m for m in preferred_order if m in detected]
-        ordered += sorted(m for m in detected if m not in preferred_order)
-        return ordered
-
-    methods = tuple(methods) if methods is not None else tuple(infer_methods(results))
+    methods_tuple = tuple(methods) if methods is not None else tuple(infer_methods(results, "_adj_precision"))
+    methods = methods_tuple
     if not methods:
         raise ValueError("No method metrics found (expected keys like '<method>_adj_precision').")
 
+    # Define xs and x_pos after methods validation, before inner functions
+    xs = sorted({r[varied_param] for r in results})
+    if not xs:
+        raise ValueError(f"No results found for varied_param='{varied_param}'")
+    x_pos = np.arange(len(xs))
+
     fixed_box_font = base_font if fixed_params_font is None else fixed_params_font
-
-    def method_label(method):
-        mapping = {
-            "tsboss": "TS-BOSS",
-            "tsboss_dag": "TS-BOSS (DAG)",
-            "pcmci": "PCMCI+",
-            "pcmci_alpha_0.05": "PCMCI+ (α=0.05)",
-            "tsboss_iid": "TS-BOSS (IID)",
-            "tsboss_iid_dag": "TS-BOSS (IID,DAG)",
-            "dynotears": "DYNOTEARS",
-            "tsfges": "TS-FGES",
-            "svarfges": "TS-FGES",
-        }
-        return mapping.get(method, method.replace("_", " ").upper())
-
     def series(method, metric):
         y, yerr = [], []
         for x in xs:
@@ -683,41 +687,23 @@ def plot_experiments(
         return np.array(y, float), np.array(yerr, float)
 
     def set_xticks(ax):
-        step = 1
-        if len(xs) > 12:
-            step = 2
-        if len(xs) > 20:
-            step = 3
-
-        idx = np.arange(0, len(xs), step)
+        # Show all X-axis labels, no skips
+        idx = np.arange(0, len(xs), 1)
         is_compact_xtick_layout = varied_param in ("N_nodes", "autocorrelation", "degree", "T")
-        label_rotation = 35
+        label_rotation = 45
         label_ha = "right"
         x_pad = 1 if is_compact_xtick_layout else 3
 
         ax.set_xticks(x_pos[idx])
         ax.set_xticklabels(
-            [fmt_x(xs[i]) for i in idx],
+            [fmt_x(xs[i], varied_param) for i in idx],
             rotation=label_rotation,
             ha=label_ha,
         )
         ax.tick_params(axis="x", labelsize=base_font, pad=x_pad)
 
-    def pretty_value(k, v):
-        s = str(v)
-        s = s.replace(r"\times", "×").replace("$", "")
-        s = s.replace(r"\lfloor", "").replace(r"\rfloor", "")
-        s = s.replace("{", "").replace("}", "")
-        return s
-
-    def pretty_key(k):
-        if k in ("tau_max", r"\tau_max", "τ_max"):
-            return "tau_max"
-        if k in ("alpha_pcmci", r"\alpha_pcmci", "αPCMCI", "α_pcmci", "α_PCMCI"):
-            return "alpha_pcmci"
-        return k
-
     fig = plt.figure(figsize=figsize)
+    fig.subplots_adjust(left=0.04, right=0.99, top=0.78, bottom=0.13)  # lower bottom for the footer
     gs = fig.add_gridspec(
         nrows=2,
         ncols=3,
@@ -730,13 +716,11 @@ def plot_experiments(
     ax_box = fig.add_subplot(gs[0, 0])
     ax_adj_p = fig.add_subplot(gs[0, 1])
     ax_adj_r = fig.add_subplot(gs[0, 2])
-
     ax_time = fig.add_subplot(gs[1, 0])
     ax_ori_p = fig.add_subplot(gs[1, 1])
     ax_ori_r = fig.add_subplot(gs[1, 2])
 
     ax_box.axis("off")
-
     ax_box.add_patch(
         FancyBboxPatch(
             (0.02, 0.03),
@@ -763,13 +747,12 @@ def plot_experiments(
     ]
     items = list(fixed_params.items())
     items = sorted(items, key=lambda kv: order.index(kv[0]) if kv[0] in order else 999)
-
     rows = [(pretty_key(k), pretty_value(k, v)) for k, v in items]
     k_w = max((len(k) for k, _ in rows), default=10)
     fixed_lines = "\n".join([f"{k:<{k_w}} : {v}" for k, v in rows])
 
     ax_box.text(
-        0.06,
+        0.015,  # further to the left
         0.965,
         "Fixed hyperparams",
         fontsize=fixed_box_font + 3,
@@ -779,7 +762,7 @@ def plot_experiments(
         transform=ax_box.transAxes,
     )
     ax_box.text(
-        0.06,
+        0.015,  # further to the left
         0.87,
         fixed_lines,
         fontsize=fixed_box_font + 2,
@@ -798,28 +781,24 @@ def plot_experiments(
             "tsboss_iid": {"marker": "v"},
             "tsboss_iid_dag": {"marker": "p"},
             "dynotears": {"marker": "X"},
-            "tsfges": {"marker": "h"},
-                "svarfges": {"marker": "h"},  
+            "tsfges": {"marker": "D"},  # rombo
+            "svarfges": {"marker": "D"},  # rombo
         }
-
         for m in methods:
             y, yerr = series(m, metric)
             mask = ~np.isnan(y)
             if not np.any(mask):
                 continue
-
             st = style.get(m, {"marker": "o"})
-
             common = dict(
                 linestyle="-",
                 marker=st["marker"],
-                linewidth=2.6,
-                markersize=9,
-                markeredgewidth=0.8,
-                capsize=3,
+                linewidth=4.0,  # thicker lines
+                markersize=13,  # larger markers
+                markeredgewidth=1.1,
+                capsize=4,
                 label=method_label(m),
             )
-
             if np.any(~np.isnan(yerr[mask])):
                 ax.errorbar(
                     x_pos[mask],
@@ -829,23 +808,22 @@ def plot_experiments(
                 )
             else:
                 ax.plot(x_pos[mask], y[mask], **common)
-
-        ax.set_title(title, fontsize=base_font + 3)
+        ax.set_title(title, fontsize=base_font + 6)
         if ylabel:
-            ax.set_ylabel(ylabel, fontsize=base_font + 2)
+            ax.set_ylabel(ylabel, fontsize=base_font + 4)
         if ylim is not None:
             ax.set_ylim(*ylim)
-
         ax.grid(True, alpha=0.25)
         set_xticks(ax)
-        ax.tick_params(axis="both", labelsize=base_font + 1)
+        ax.tick_params(axis="both", labelsize=base_font + 3)
+        
+        # ax.tick_params(axis="y", labelsize=base_font + 7) for autocorrelation plot
 
     def tight_ylim_for(metrics, pad=0.01, min_span=0.06, headroom=0.03, clamp=(0.0, 1.02)):
         vals = []
         for metric in metrics:
             for m in methods:
                 y, yerr = series(m, metric)
-
                 for yi, ei in zip(y, yerr):
                     if np.isnan(yi):
                         continue
@@ -854,37 +832,27 @@ def plot_experiments(
                     else:
                         vals.append(yi - ei)
                         vals.append(yi + ei)
-
         if not vals:
             return clamp
-
         lo, hi = min(vals), max(vals)
         lo -= pad
         hi += pad
         hi += headroom
-
         if (hi - lo) < min_span:
             mid = 0.5 * (hi + lo)
             lo = mid - min_span / 2
             hi = mid + min_span / 2
-
         lo = max(clamp[0], lo)
         hi = min(clamp[1], hi)
-
         return (lo, hi)
-
-    adj_ylim = tight_ylim_for(["adj_precision", "adj_recall"], pad=0.01, headroom=0.03, min_span=0.06)
-
+    adj_ylim = tight_ylim_for(["adj_precision", "adj_recall"], pad=0.05, headroom=0.03, min_span=0.06)
     plot_metric(ax_adj_p, "adj_precision", "Adjacency precision", ylim=adj_ylim)
     plot_metric(ax_adj_r, "adj_recall", "Adjacency recall", ylim=adj_ylim)
-
+                    # Restore previous y-axis formatting
     plot_metric(ax_time, "time_total", "Runtime (s)")
-    
     ori_ylim = tight_ylim_for(["ori_precision", "ori_recall"], pad=0.05, headroom=0.03, min_span=0.06)
-
     plot_metric(ax_ori_p, "ori_precision", "Orientation precision", ylim=ori_ylim)
     plot_metric(ax_ori_r, "ori_recall", "Orientation recall", ylim=ori_ylim)
-
     handles, labels = ax_time.get_legend_handles_labels()
     if not handles:
         handles, labels = ax_adj_p.get_legend_handles_labels()
@@ -894,9 +862,10 @@ def plot_experiments(
         loc="upper center",
         ncol=max(1, len(methods)),
         frameon=False,
-        markerscale=1.35,
+        markerscale=0.9,  # smaller so the shape is better appreciated
+        fontsize=base_font ,  # much smaller legend
+        bbox_to_anchor=(0.5, 1.07),  # closer to the plots
     )
-
-    fig.supxlabel(x_label, fontsize=base_font + 4)
-    fig.subplots_adjust(left=0.04, right=0.99, top=0.93, bottom=0.12)
+    fig.supxlabel(x_label, fontsize=base_font + 7)
+    fig.subplots_adjust(left=0.04, right=0.99, top=0.95, bottom=0.12)
     plt.show()
