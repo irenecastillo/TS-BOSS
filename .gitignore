@@ -1,5 +1,14 @@
 # Python cache
 __pycache__/
+*.pyc
+
+# Local environments and tooling caches
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
 
 # Generated quick test artifacts
 results/quicktest_experiments_*.json
