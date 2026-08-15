@@ -3,7 +3,15 @@
 **Third-party licenses and attributions:**
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full legal details, licenses, and provenance of included third-party code and dependencies.
 
-# TS-BOSS: Time Series Best Order Score Search
+## Project Credits
+
+- Irene Castillo
+- Urmi Ninad
+
+## Paper Reference
+
+- arXiv preprint: [https://arxiv.org/abs/2603.05370](https://arxiv.org/abs/2603.05370)
+- Note: the arXiv version is currently behind the latest accepted conference manuscript.
 
 
 ## Overview
@@ -75,9 +83,9 @@ jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 ### Project Modules
 
 **TS-BOSS Implementation** (`src/tsboss/`)
-- `src/boss.py` — Core BOSS algorithm adapted for time series
-- `src/scores.py` — Score computations (BIC, other variants)
-- `src/gst.py`, `src/dao.py` — Grow-Shrink tree and directed acyclic order utilities
+- `src/tsboss/ts_boss.py` — Core BOSS adaptation for time series
+- `src/tsboss/scores.py` — Score computations (BIC, other variants)
+- `src/tsboss/gst.py`, `src/tsboss/tsdag_to_tsmpdag.py` — Grow-Shrink search and DAG-to-MPDAG conversion utilities
 
 **TS-FGES Wrapper** (`src/tsfges/`)
 - `src/tsfges/tsfges.py` → `run_tsfges(...)` — Main wrapper function
