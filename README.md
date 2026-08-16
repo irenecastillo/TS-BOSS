@@ -71,6 +71,16 @@ python run_experiments.py
 ```
 This will execute all four experiments (varying sample size, graph density, number of nodes, and autocorrelation) and save results in the `results/` folder as both `.txt` and `.json` files. To run only selected experiments, use the `--exp` flag with experiment numbers (1–4). Add `--quiet` to reduce console output.
 
+### Memory scaling
+
+Peak memory consumption as the number of variables increases can be measured with:
+
+```bash
+python run_memory_scaling.py
+```
+
+The script uses the same data-generation and method settings as the node-scaling experiment, with $T=1000$, average degree $1.5$, autocorrelation $0.3$, and maximum lag $3$. By default, it generates 10 independent graphs for each number of variables, and all methods receive the same data within each repetition. Each method is run in a separate process, and its total peak resident set size (RSS) is reported in MiB. Raw measurements, summary statistics, and a plot are saved in the `results/` folder. Use `--repetitions` or `--nodes` for a smaller run.
+
 ### Jupyter Notebook Alternative
 You can also run experiments interactively:
 ```bash
