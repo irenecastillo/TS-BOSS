@@ -10,6 +10,10 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Downloaded datasets and JVM crash reports
+/data/
+/hs_err_pid*.log
+
 # Generated quick test artifacts
 results/quicktest_experiments_*.json
 results/quicktest_experiments_*.txt
