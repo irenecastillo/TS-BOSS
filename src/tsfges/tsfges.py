@@ -5,6 +5,8 @@ from __future__ import annotations
 # pyright: reportMissingImports=false
 
 import os
+import platform
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Dict, Iterable, Sequence
@@ -18,14 +20,48 @@ def _resolve_jvm_path() -> str:
     # 1) Prefer explicit JAVA_HOME.
     java_home = os.getenv("JAVA_HOME")
     if java_home:
-        candidate = Path(java_home) / "bin" / "server" / "jvm.dll"
-        if candidate.exists():
-            return str(candidate)
-        candidate = Path(java_home) / "bin" / "client" / "jvm.dll"
-        if candidate.exists():
-            return str(candidate)
+        java_home_path = Path(java_home)
+        for candidate in [
+            java_home_path / "lib" / "server" / "libjvm.dylib",  # macOS
+            java_home_path / "lib" / "server" / "libjvm.so",     # Linux
+            java_home_path / "bin" / "server" / "jvm.dll",       # Windows
+            java_home_path / "bin" / "client" / "jvm.dll",       # Windows
+        ]:
+            if candidate.exists():
+                return str(candidate)
 
-    # 2) Fallback to common Windows JDK locations.
+    # 2) macOS fallback: query java_home and common Homebrew locations.
+    if platform.system() == "Darwin":
+        try:
+            java_home_out = subprocess.check_output(
+                ["/usr/libexec/java_home"],
+                text=True,
+                stderr=subprocess.STDOUT,
+            ).strip()
+            jvm_lib = Path(java_home_out) / "lib" / "server" / "libjvm.dylib"
+            if jvm_lib.exists():
+                return str(jvm_lib)
+        except Exception:
+            pass
+
+        for candidate in [
+            Path("/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home/lib/server/libjvm.dylib"),
+            Path("/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home/lib/server/libjvm.dylib"),
+        ]:
+            if candidate.exists():
+                return str(candidate)
+
+    # 3) Linux fallback: common JAVA_HOME-style locations.
+    if platform.system() == "Linux":
+        for candidate in [
+            Path("/usr/lib/jvm/default-java/lib/server/libjvm.so"),
+            Path("/usr/lib/jvm/java-17-openjdk-amd64/lib/server/libjvm.so"),
+            Path("/usr/lib/jvm/java-11-openjdk-amd64/lib/server/libjvm.so"),
+        ]:
+            if candidate.exists():
+                return str(candidate)
+
+    # 4) Fallback to common Windows JDK locations.
     roots = [
         Path(os.getenv("LOCALAPPDATA", "")) / "Programs" / "Eclipse Adoptium",
         Path("C:/Program Files/Eclipse Adoptium"),
@@ -37,7 +73,7 @@ def _resolve_jvm_path() -> str:
         for jvm_dll in sorted(root.rglob("jvm.dll"), reverse=True):
             return str(jvm_dll)
 
-    # 3) Let JPype handle last-resort discovery.
+    # 5) Let JPype handle last-resort discovery.
     return jpype.getDefaultJVMPath()
 
 
