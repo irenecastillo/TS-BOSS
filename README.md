@@ -3,11 +3,6 @@
 **Third-party licenses and attributions:**
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full legal details, licenses, and provenance of included third-party code and dependencies.
 
-## Project Credits
-
-- Irene Castillo
-- Urmi Ninad
-
 ## Paper Reference
 
 - arXiv preprint: [https://arxiv.org/abs/2603.05370](https://arxiv.org/abs/2603.05370)
