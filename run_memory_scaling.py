@@ -1,4 +1,4 @@
-"""Measure peak memory consumption as the number of variables increases.
+"""Measure peak memory consumption as the number of nodes increases.
 
 The data generation and method settings match ``run_experiments.py``. Each
 method is run in a separate process so that its peak resident memory is not
@@ -20,6 +20,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import FancyBboxPatch
 
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -38,18 +39,26 @@ from time_series_gen import (
 
 
 N_NODES = [3, 4, 5, 7, 10, 13, 15, 20, 25, 30, 50, 100]
-METHODS = ["tsboss", "pcmci", "dynotears", "tsfges", "tsboss_iid"]
+METHODS = ["tsboss", "pcmci", "tsboss_iid", "dynotears", "tsfges"]
 METHOD_LABELS = {
     "tsboss": "TS-BOSS",
     "pcmci": "PCMCI+",
+    "tsboss_iid": "TS-BOSS (IID)",
     "dynotears": "DYNOTEARS",
     "tsfges": "TS-FGES",
-    "tsboss_iid": "TS-BOSS IID",
+}
+METHOD_MARKERS = {
+    "tsboss": "o",
+    "pcmci": "s",
+    "tsboss_iid": "v",
+    "dynotears": "X",
+    "tsfges": "h",
 }
 
 T_FIXED = 1000
 DEGREE_FIXED = 1.5
 AUTOCORRELATION_FIXED = 0.3
+CONTEMP_FRACTION = 0.3
 TAU_MAX_TRUE = 3
 LAG_MAX = 3
 PCMCI_ALPHA = 0.01
@@ -77,12 +86,13 @@ def lin_f(x):
     return x
 
 
-def mean_and_se(values: list[float]) -> tuple[float, float]:
-    """Return the mean and standard error, matching experiment_helpers.py."""
+def mean_sd_se(values: list[float]) -> tuple[float, float, float]:
+    """Return the mean, sample standard deviation, and standard error."""
     array = np.asarray(values, dtype=float)
     mean = float(np.mean(array))
-    se = float(np.std(array, ddof=1) / np.sqrt(len(array))) if len(array) > 1 else 0.0
-    return mean, se
+    sd = float(np.std(array, ddof=1)) if len(array) > 1 else 0.0
+    se = sd / np.sqrt(len(array)) if len(array) > 1 else 0.0
+    return mean, sd, se
 
 
 def environment_metadata() -> dict:
@@ -142,7 +152,7 @@ def generate_stationary_data(n_nodes: int, graph_index: int):
         coupling_funcs=[lin_f],
         auto_coeffs=[AUTOCORRELATION_FIXED],
         tau_max=TAU_MAX_TRUE,
-        contemp_fraction=0.3,
+        contemp_fraction=CONTEMP_FRACTION,
         random_state=rng,
     )
     data, nonstationary = generate_nonlinear_contemp_timeseries(
@@ -203,7 +213,11 @@ def write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
     """Write rows to CSV, including an empty file header for checkpoints."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=fieldnames,
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -219,10 +233,10 @@ def summarize(raw_rows: list[dict]) -> list[dict]:
             ]
             if not group:
                 continue
-            memory_mean, memory_se = mean_and_se(
+            memory_mean, memory_sd, memory_se = mean_sd_se(
                 [float(row["peak_rss_mib"]) for row in group]
             )
-            runtime_mean, runtime_se = mean_and_se(
+            runtime_mean, runtime_sd, runtime_se = mean_sd_se(
                 [float(row["runtime_s"]) for row in group]
             )
             summary_rows.append(
@@ -234,8 +248,10 @@ def summarize(raw_rows: list[dict]) -> list[dict]:
                     "method": method,
                     "n_runs": len(group),
                     "peak_rss_mib_mean": memory_mean,
+                    "peak_rss_mib_sd": memory_sd,
                     "peak_rss_mib_se": memory_se,
                     "runtime_s_mean": runtime_mean,
+                    "runtime_s_sd": runtime_sd,
                     "runtime_s_se": runtime_se,
                 }
             )
@@ -243,8 +259,67 @@ def summarize(raw_rows: list[dict]) -> list[dict]:
 
 
 def save_plot(summary_rows: list[dict], path: Path) -> None:
-    """Save a simple memory-scaling plot."""
-    fig, ax = plt.subplots(figsize=(6.4, 4.2))
+    """Save the memory-scaling plot using the paper's method styles."""
+    node_counts = sorted({int(row["N_nodes"]) for row in summary_rows})
+    x_positions = np.arange(len(node_counts))
+    fig = plt.figure(figsize=(12.5, 4.4))
+    grid = fig.add_gridspec(1, 2, width_ratios=[2.0, 2.5], wspace=0.14)
+    ax_box = fig.add_subplot(grid[0, 0])
+    ax = fig.add_subplot(grid[0, 1])
+
+    ax_box.axis("off")
+    ax_box.add_patch(
+        FancyBboxPatch(
+            (0.02, 0.03),
+            0.96,
+            0.92,
+            boxstyle="round,pad=0.03",
+            linewidth=1.0,
+            edgecolor="0.75",
+            facecolor="white",
+            transform=ax_box.transAxes,
+        )
+    )
+    ax_box.set_title("Experiment settings", fontsize=17, pad=6)
+    ax_box.text(
+        0.06,
+        0.965,
+        "Fixed hyperparams",
+        fontsize=16,
+        fontweight="bold",
+        ha="left",
+        va="top",
+        transform=ax_box.transAxes,
+    )
+    parameter_rows = [
+        ("Nº samples (T)", T_FIXED),
+        ("Graph density (d)", DEGREE_FIXED),
+        ("Nº links (L)", r"$d \times N$"),
+        ("% Contemp. Links", CONTEMP_FRACTION),
+        ("Autocorr. param. (a)", AUTOCORRELATION_FIXED),
+        ("Max. time lag (τ_max)", LAG_MAX),
+        ("TS-BOSS BIC Penalty (pd)", 2),
+        ("PCMCI+ signif. level (α)", PCMCI_ALPHA),
+        ("DYNOTEARS L1 penalty", 0.1),
+        ("TS-FGES SemBIC Penalty (λ)", 1),
+        ("Transient (burn-in) length", r"$0.2 \times T$"),
+    ]
+    key_width = max(len(key) for key, _ in parameter_rows)
+    settings = "\n".join(
+        f"{key:<{key_width}} : {value}" for key, value in parameter_rows
+    )
+    ax_box.text(
+        0.06,
+        0.87,
+        settings,
+        fontsize=13,
+        family="monospace",
+        ha="left",
+        va="top",
+        linespacing=1.2,
+        transform=ax_box.transAxes,
+    )
+
     for method in METHODS:
         rows = sorted(
             (row for row in summary_rows if row["method"] == method),
@@ -252,17 +327,40 @@ def save_plot(summary_rows: list[dict], path: Path) -> None:
         )
         if not rows:
             continue
-        x = np.asarray([row["N_nodes"] for row in rows])
         y = np.asarray([row["peak_rss_mib_mean"] for row in rows])
-        se = np.asarray([row["peak_rss_mib_se"] for row in rows])
-        ax.plot(x, y, marker="o", linewidth=1.5, label=METHOD_LABELS[method])
-        ax.fill_between(x, y - se, y + se, alpha=0.15)
+        sd = np.asarray([row["peak_rss_mib_sd"] for row in rows])
+        positions = np.asarray(
+            [node_counts.index(int(row["N_nodes"])) for row in rows]
+        )
+        ax.errorbar(
+            positions,
+            y,
+            yerr=sd,
+            linestyle="-",
+            marker=METHOD_MARKERS[method],
+            linewidth=2.6,
+            markersize=9,
+            markeredgewidth=0.8,
+            capsize=3,
+            label=METHOD_LABELS[method],
+        )
 
-    ax.set_xlabel("Number of variables")
-    ax.set_ylabel("Peak RSS (MiB)")
-    ax.grid(alpha=0.25)
-    ax.legend(frameon=False)
-    fig.tight_layout()
+    ax.set_xlabel("Number of nodes (N)", fontsize=18)
+    ax.set_ylabel("Peak RSS (MiB)", fontsize=16)
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(node_counts, rotation=35, ha="right")
+    ax.grid(True, alpha=0.25)
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.74, 1.0),
+        frameon=False,
+        ncol=len(METHODS),
+        markerscale=1.35,
+    )
+    fig.subplots_adjust(left=0.03, right=0.98, top=0.88, bottom=0.18)
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
 
@@ -304,7 +402,7 @@ def run_memory_scaling(
                     links_coeffs,
                     T=T_FIXED,
                     lag_max=LAG_MAX,
-                    param_transient=0.2,
+                    param_transient=PARAM_TRANSIENT,
                 )
             except Exception as exc:
                 if verbose:
@@ -376,8 +474,10 @@ def run_memory_scaling(
         "method",
         "n_runs",
         "peak_rss_mib_mean",
+        "peak_rss_mib_sd",
         "peak_rss_mib_se",
         "runtime_s_mean",
+        "runtime_s_sd",
         "runtime_s_se",
     ]
     write_csv(summary_path, summary_rows, summary_fields)
@@ -385,9 +485,10 @@ def run_memory_scaling(
     payload = {
         "saved_at": datetime.now().isoformat(timespec="seconds"),
         "metadata": {
-            "description": "Peak RSS as the number of variables increases",
+            "description": "Peak RSS as the number of nodes increases",
             "memory_measure": "maximum resident set size of an isolated process",
             "memory_unit": "MiB",
+            "summary_statistics": "mean, sample standard deviation, and standard error",
             "environment": environment_metadata(),
             "run_parameters": {
                 "N_nodes": nodes,
@@ -416,14 +517,14 @@ def run_memory_scaling(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Measure peak memory as the number of variables increases"
+        description="Measure peak memory as the number of nodes increases"
     )
     parser.add_argument(
         "--nodes",
         nargs="+",
         type=int,
         default=N_NODES,
-        help="Numbers of variables to evaluate",
+        help="Numbers of nodes to evaluate",
     )
     parser.add_argument(
         "--repetitions",
