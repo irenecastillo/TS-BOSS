@@ -1,7 +1,7 @@
 """
 Time Series BOSS (TS-BOSS) - Causal Discovery for Time Series Data
 
-Copyright (c) 2025 Irene Castillo
+Copyright (c) 2026 Irene Gema Castillo Mansilla
 This work is based on the BOSS algorithm from: https://github.com/bja43/boss
 Original BOSS code Copyright (c) Original BOSS authors
 
