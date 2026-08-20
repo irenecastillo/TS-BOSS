@@ -33,6 +33,22 @@ TS-BOSS/
 └── results/         # Experimental results
 ```
 
+## Installation
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt    # or requirements-lock.txt for the exact tested versions
+```
+
+Requires Python 3.11 or 3.12.
+
+**TS-FGES only:** a Java JDK is additionally required, since the method calls Tetrad
+through JPype. The JVM is located automatically from `JAVA_HOME`, from
+`/usr/libexec/java_home` on macOS, or from common Homebrew and Linux install
+paths. If it is not found, set `JAVA_HOME` manually. The reported experiments
+were run with OpenJDK 26.
+
 ## Experiments
 
 This project evaluates **TS-BOSS** against other causal discovery methods on synthetic time-series data.
