@@ -30,7 +30,11 @@ TS-BOSS/
 │       └── test_tsfges/  # Test script, quickstart notebook, and sample dataset
 ├── utils/           # Metrics, plotting, data generation, converters
 ├── notebooks/       # Main experiment notebooks
-└── results/         # Experimental results
+├── tests/           # Unit tests (pytest)
+├── data/            # Downloaded datasets (git-ignored)
+├── results/         # Experimental results (JSON/TXT, images/)
+├── run_experiments.py      # Synthetic experiments (CLI)
+└── run_memory_scaling.py   # Peak-memory experiment (CLI)
 ```
 
 ## Installation
@@ -98,6 +102,17 @@ You can also run experiments interactively:
 jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 ```
 
+### Real data: Causal Chamber
+
+`notebooks/causal_chamber_experiment.ipynb` evaluates the methods on the wind-tunnel dataset `wt_walks_v1` from the [Causal Chamber](https://github.com/juangamella/causal-chamber) project. The dataset is downloaded automatically into `data/causal_chamber/` the first time the notebook runs (requires the `causalchamber` package, included in `requirements.txt`).
+
+## Tests
+
+```bash
+pip install pytest
+pytest tests/
+```
+
 
 ## Implementation Details
 
@@ -123,6 +138,7 @@ jupyter notebook notebooks/TS-BOSSY_notebook_experiments.ipynb
 
 **Utilities** (`utils/`)
 - `experiment_helpers.py` — Experiment orchestration & result saving
+- `memory_worker.py` — Per-method worker used by `run_memory_scaling.py`
 - `tetrad_to_tigramite.py` — Format conversion for Tetrad output
 - `dynotears_to_tigramite.py` — Format conversion for DYNOTEARS output
 - Data generation, metrics and plotting tools

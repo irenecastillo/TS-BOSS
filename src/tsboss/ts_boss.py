@@ -72,6 +72,7 @@ class TSBOSS:
         self.lag_max = int(lag_max)
         self.pd = int(pd)
         self.rng = rng if rng is not None else default_rng()
+        self.verbose = False
 
         # Learned attributes (set by fit)
         self.N_ = None

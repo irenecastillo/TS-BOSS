@@ -1,5 +1,5 @@
 # TS-BOSS runtime dependencies
-# Python: 3.12.x
+# Python: 3.11 or 3.12
 
 numpy==2.3.4
 pandas==2.3.3
@@ -13,6 +13,9 @@ tigramite==5.2.9.4
 jpype1==1.6.0
 dcor==0.6
 numba==0.62.1
+
+# Real-data experiment (Causal Chamber benchmark)
+causalchamber==0.2.8
 
 # Notebook execution (optional but recommended)
 ipykernel==7.1.0
