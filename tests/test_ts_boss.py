@@ -26,3 +26,11 @@ def test_recovers_simple_lagged_edge():
     assert graph[0, 0, 1] == "-->"  # X0(t-1) -> X0(t)
     assert graph[1, 0, 1] == ""     # no X1(t-1) -> X0(t)
     assert model.mpdag["graph"].shape == (2, 2, 2)
+
+
+def test_qrbic_matches_bic():
+    from tsboss.scores import QRBIC
+    data = pp.DataFrame(simulate())
+    g_bic = TSBOSS(lag_max=1, rng=default_rng(0)).run_tsboss(data, get_mpdag=True).dag["graph"]
+    g_qr = TSBOSS(lag_max=1, rng=default_rng(0)).run_tsboss(data, get_mpdag=True, score_class=QRBIC).dag["graph"]
+    assert (g_bic == g_qr).all()

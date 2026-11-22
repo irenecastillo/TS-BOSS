@@ -50,7 +50,7 @@ import numpy as np
 from numpy import zeros
 from numpy.random import default_rng
 
-from .scores import BIC
+from .scores import BIC, QRBIC
 from .gst import GST
 from .tsdag_to_tsmpdag import tsdag_to_tsmpdag
 
@@ -244,7 +244,7 @@ class TSBOSS:
         unrolled_data = array.T
         return unrolled_data, N
 
-    def run_tsboss(self, data, iid_data=False, get_mpdag=False, verbose=None, pc_alpha=0.01):
+    def run_tsboss(self, data, iid_data=False, get_mpdag=False, verbose=None, pc_alpha=0.01, score_class=BIC):
         """
         Fit the TS-BOSS algorithm to discover causal structure.
         
@@ -256,6 +256,8 @@ class TSBOSS:
             If True, treat data as independent and identically distributed (IID) and dont unroll
         get_mpdag : bool, default=True
             If True, convert DAG to MPDAG using PCMCI+ orientation rules
+        score_class : class, default=BIC
+            Score to use; pass QRBIC for a numerically stable BIC.
         
         Returns:
         --------
@@ -274,7 +276,7 @@ class TSBOSS:
         self.N_ = N
         
         # Initialize BIC scoring function
-        score = BIC(data_unrolled, pd=self.pd)
+        score = score_class(data_unrolled, pd=self.pd)
         
         # Initial ordering: all variables (lagged + current)
         order = [v for v in range((self.lag_max + 1) * N)]
